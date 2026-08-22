@@ -3,18 +3,19 @@ import numpy as np, wave, os, io
 from piper import PiperVoice, SynthesisConfig
 
 SR = 48000
-DUR = 30.0
+DUR = 36.0
 OUT = os.path.dirname(os.path.abspath(__file__))
 voice = PiperVoice.load('/tmp/voices/en_US-ryan-high.onnx')
 
 LINES = [
-    (0.55,  4.35, "Every name you love is already taken."),
-    (6.20,  8.70, "Zero Taken finds the ones that aren't."),
-    (9.45, 13.30, "Describe your idea in plain words. The A.I. does the naming."),
-    (14.45, 17.75, "Every extension, checked live, straight from the registry."),
-    (18.35, 20.80, "Scored for brandability before you buy."),
-    (21.45, 24.55, "One founder found a thirty thousand dollar name for twelve."),
-    (25.70, 29.10, "Zero Taken dot com. Your name is waiting."),
+    (0.45,  3.70, "Naming your startup? You'll check a hundred domains tonight."),
+    (4.35,  7.55, "And every good dot com is already gone. Right?"),
+    (8.55, 11.60, "Zero Taken flips it. Every name it gives you is available."),
+    (12.45, 17.55, "Describe your idea in plain words. The A.I. writes the names and checks them as it goes."),
+    (18.45, 21.55, "Hundreds of extensions, checked live at the registry."),
+    (22.45, 25.55, "Each one scored for brandability, before you spend a cent."),
+    (26.45, 29.55, "One founder found a thirty thousand dollar name for twelve."),
+    (30.60, 35.20, "Zero Taken dot com. Free to search. Your name is still out there."),
 ]
 
 def synth(text, length_scale):
@@ -53,13 +54,16 @@ for (t0, t1, text) in LINES:
         d = len(a) / sr
         if d <= budget:
             break
-        ls *= max(0.82, (budget / d) * 0.99)
+        ls = max(0.93, ls * max(0.93, (budget / d) * 0.99))
     a = resample(a, sr, SR)
     f = int(0.02 * SR)
     a[:f] *= np.linspace(0, 1, f); a[-f:] *= np.linspace(1, 0, f)
     i0 = int(t0 * SR)
     n = min(len(a), len(bed) - i0)
     bed[i0:i0 + n] += a[:n]
+    over = (len(a) / SR) - budget
+    if over > 0.02:
+        print('  !! OVERRUNS BY %.2fs: %s' % (over, text))
     report.append((t0, t0 + len(a) / SR, round(ls, 3), text))
 
 def biquad(x, b, a):

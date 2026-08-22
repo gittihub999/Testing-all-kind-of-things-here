@@ -7,7 +7,7 @@ seconds against that grid.
 import numpy as np, wave, os, sys
 
 SR = 48000
-DUR = 30.0
+DUR = 36.0
 N = int(SR * DUR)
 T = np.arange(N) / SR
 OUT = os.path.dirname(os.path.abspath(__file__))
@@ -15,7 +15,7 @@ OUT = os.path.dirname(os.path.abspath(__file__))
 BPM = 120.0
 BEAT = 60.0 / BPM          # 0.5s
 BAR = BEAT * 4             # 2.0s
-CUTS = [0.0, 5.0, 9.0, 14.0, 18.0, 21.0, 25.0, 30.0]
+CUTS = [0.0, 4.0, 8.0, 12.0, 18.0, 22.0, 26.0, 30.0, 36.0]
 
 rs = np.random.RandomState(20260822)
 
@@ -190,7 +190,7 @@ step = BEAT / 4
 nsteps = int(DUR / step)
 for i in range(nsteps):
     t0 = i * step
-    if t0 < 5.0 - 0.25:
+    if t0 < 8.0 - 0.25:
         continue
     b = int(t0 // BAR)
     notes = PROG[b % 4][1]
@@ -201,7 +201,7 @@ for i in range(nsteps):
     x = np.arange(n) / SR
     sig = sq(f, n, duty=0.32) * 0.5 + saw(f, n) * 0.5
     e = np.clip(x / 0.002, 0, 1) * np.exp(-x * 22)
-    gain = 0.55 if t0 < 9.0 else (0.85 if t0 < 18.0 else 1.0)
+    gain = 0.55 if t0 < 12.0 else (0.85 if t0 < 22.0 else 1.0)
     place(arp, sig * e * gain, t0)
 arp = biquad_lp(arp, 2600.0)
 arp = arp * 0.8 + fftconv(arp, IR) * 0.22
@@ -232,18 +232,20 @@ def hat(t0, gain=1.0, dcy=70.0):
 for b in range(NBARS):
     t0 = b * BAR
     if t0 >= DUR: break
-    full = t0 >= 5.0
-    if t0 >= 4.0:
+    full = t0 >= 8.0
+    if t0 >= 2.0:
         kick(t0, 1.0)
         kick(t0 + BEAT * 2, 0.95)
+    if t0 >= 4.0:
+        snare(t0 + BEAT * 3, 0.70)
     if full:
         kick(t0 + BEAT * 2 + BEAT * 0.75, 0.45)
         snare(t0 + BEAT, 0.75)
         snare(t0 + BEAT * 3, 0.80)
-    if t0 >= 9.0:
+    if t0 >= 12.0:
         for k in range(8):
             hat(t0 + k * BEAT / 2, 0.20 if k % 2 else 0.32)
-    if t0 >= 14.0:
+    if t0 >= 18.0:
         for k in range(16):
             if k % 2:
                 hat(t0 + k * BEAT / 4, 0.12, 110.0)
@@ -254,7 +256,7 @@ duck = np.ones(N)
 for b in range(NBARS):
     for k in (0, 2):
         t0 = b * BAR + k * BEAT
-        if t0 >= DUR or t0 < 4.0: continue
+        if t0 >= DUR or t0 < 2.0: continue
         d = 0.34; i0 = int(t0 * SR); n = min(int(d * SR), N - i0)
         if n <= 0: continue
         x = np.arange(n) / SR
@@ -287,10 +289,10 @@ def downlift(t0, dur=1.1, gain=0.35):
 for c in CUTS[1:-1]:
     riser(c - 1.1, 1.1, 200, 3400, 0.30)
     downlift(c, 1.0, 0.26)
-riser(3.9, 1.1, 160, 2600, 0.34)
+riser(7.3, 0.70, 220, 4200, 0.42)
 
 # --- ending: let the bed ring out ------------------------------------------
-tail_mask = 1 - np.clip((T - 28.4) / 1.6, 0, 1) ** 1.4
+tail_mask = 1 - np.clip((T - 34.4) / 1.6, 0, 1) ** 1.4
 music *= tail_mask
 music = music * 0.86 + fftconv(music, IR) * 0.16
 
@@ -354,30 +356,52 @@ def sweepup(t0, dur, gain=0.35, f0=220, f1=2400):
     e = p ** 1.5 * (1 - np.clip((x - dur + 0.05) / 0.05, 0, 1))
     place(sfx, sig * e * gain, t0)
 
-# 1 · hook
-impact(0.00, 0.85, 46, 1.6)
+# 1 · question one — the feed builds and scans
+impact(0.00, 0.80, 46, 1.6)
 shimmer(0.05, 1.6, 0.16)
-msg = 'Every name is taken'
-for i in range(len(msg)):
-    if msg[i] != ' ':
-        tick(0.55 + i * (2.30 - 0.55) / (len(msg) + 0.6), 0.085, 2200 + (i % 5) * 260)
-whoosh(4.30, 0.72, 0.42, True)
+q1 = 'Naming your startup?'
+for i in range(len(q1)):
+    if q1[i] != ' ':
+        tick(0.30 + i * (1.85 - 0.30) / (len(q1) + 0.6), 0.080, 2200 + (i % 5) * 260)
+for tt in (1.15, 2.25, 3.25):
+    tick(tt, 0.22, 1500)
+    blip(tt, 0.10, 820, True)
+whoosh(3.40, 0.62, 0.40, True)
 
-# 2 · brand — the cut, then the snap
-impact(5.00, 1.0, 44, 1.5)
-whoosh(4.94, 0.5, 0.3, True)
-snap(5.98, 0.85)
-shimmer(6.00, 1.8, 0.26)
-blip(6.02, 0.22, 900, True)
-for k, tt in enumerate([6.20, 6.55, 6.95]):
+# 2 · question two — every line gets stamped
+impact(4.00, 0.90, 44, 1.5)
+q2 = 'Every .com already gone?'
+for i in range(len(q2)):
+    if q2[i] != ' ':
+        tick(4.18 + i * (5.80 - 4.18) / (len(q2) + 0.6), 0.080, 2000 + (i % 5) * 240)
+def stamp(t0, gain=0.42):
+    d = 0.34; n = int(d * SR); x = np.arange(n) / SR
+    thud = np.sin(2 * np.pi * (150 * (1 + 1.6 * np.exp(-x * 40))) * x) * np.exp(-x * 19)
+    grit = biquad_hp(noise(n), 1100.0) * np.exp(-x * 44) * 0.7
+    sig = (thud + grit) * gain
+    place(sfx, sig * 0.8 + fftconv(sig, IR)[:n] * 0.4, t0)
+for tt in (4.62, 5.95, 7.28):
+    stamp(tt, 0.42)
+    blip(tt + 0.01, 0.16, 620, False)
+for k in range(7):                      # the feed runs away into the reveal
+    stamp(7.42 + k * 0.075, 0.20 + k * 0.03)
+riser(7.30, 0.66, 240, 4400, 0.34) if False else None
+whoosh(7.30, 0.68, 0.55, True, 260, 5200)
+
+# 3 · the reveal
+impact(8.00, 1.05, 42, 1.7)
+snap(8.98, 0.85)
+shimmer(9.00, 1.8, 0.28)
+blip(9.02, 0.22, 900, True)
+for k, tt in enumerate([9.20, 9.55, 9.95]):
     blip(tt, 0.10, 1400 + k * 300, True)
 
-# 3 · prompt — typing, swaps, results landing
-whoosh(9.00, 0.55, 0.36, True)
+# 4 · prompt — typing, swaps, results landing
+whoosh(12.00, 0.55, 0.36, True)
 lines = ['fintech for freelancers', 'an AI photo editor', 'tool for indie devs']
-each = 5.0 / 3
+each = 6.0 / 3
 for li, ln in enumerate(lines):
-    t0 = 9.0 + li * each
+    t0 = 12.0 + li * each
     ty0, ty1 = t0 + 0.07 * each, t0 + 0.50 * each
     for i in range(len(ln)):
         if ln[i] != ' ':
@@ -387,36 +411,39 @@ for li, ln in enumerate(lines):
     if li < 2:
         whoosh(t0 + each * 0.86, 0.34, 0.22, False, 500, 2600)
 
-# 4 · TLDs — the formation opens, then eight availability ticks
-impact(14.00, 0.8, 50, 1.3)
-whoosh(13.94, 0.6, 0.34, True)
-sweepup(14.05, 0.75, 0.20, 300, 1500)
+# 5 · TLDs — the formation opens, then eight availability ticks
+impact(18.00, 0.8, 50, 1.3)
+whoosh(17.94, 0.6, 0.34, True)
+sweepup(18.05, 0.75, 0.20, 300, 1500)
 for j in range(8):
-    blip(15.15 + j * 0.13, 0.22, 1500 + j * 90, True)
+    blip(19.15 + j * 0.13, 0.22, 1500 + j * 90, True)
 
-# 5 · score — slam, gauge sweep, ping
-impact(18.00, 1.05, 42, 1.7)
-sweepup(18.06, 0.98, 0.30, 260, 2600)
-blip(19.05, 0.42, 1760, True)
-shimmer(19.05, 1.2, 0.18)
+# 6 · score — slam, gauge sweep, ping, two pulses
+impact(22.00, 1.05, 42, 1.7)
+sweepup(22.06, 0.98, 0.30, 260, 2600)
+blip(23.05, 0.42, 1760, True)
+shimmer(23.05, 1.2, 0.18)
+blip(23.92, 0.16, 1320, True)
+blip(24.92, 0.14, 1180, True)
 
-# 6 · proof — the card arrives and whips out
-whoosh(20.90, 0.70, 0.55, True, 240, 3000)
-impact(21.36, 0.75, 58, 1.2)
-shimmer(21.40, 1.0, 0.12)
-whoosh(24.62, 0.42, 0.50, True, 700, 5200)
+# 7 · proof — the card arrives and whips out
+whoosh(25.90, 0.70, 0.55, True, 240, 3000)
+impact(26.36, 0.75, 58, 1.2)
+shimmer(26.40, 1.0, 0.12)
+whoosh(29.62, 0.42, 0.50, True, 700, 5200)
 
-# 7 · close
-whoosh(25.00, 0.6, 0.34, True)
-shimmer(25.05, 1.6, 0.16)
-blip(25.88, 0.24, 980, True)          # .com -> check morph
-sweepup(26.30, 0.52, 0.22, 320, 1700)  # container dissolving
-snap(27.10, 0.95)                      # the lockup lands
-shimmer(27.12, 2.6, 0.34)
-impact(27.10, 0.7, 48, 2.0)
-shimmer(28.20, 1.8, 0.14)
+# 8 · close
+whoosh(30.00, 0.6, 0.34, True)
+shimmer(30.05, 1.6, 0.16)
+blip(31.00, 0.24, 980, True)           # .com -> check morph
+sweepup(31.55, 0.52, 0.22, 320, 1700)  # container dissolving
+snap(32.60, 0.95)                      # the lockup lands
+impact(32.60, 0.70, 48, 2.0)
+shimmer(32.62, 2.6, 0.34)
+blip(34.08, 0.30, 1240, True)          # the button
+shimmer(34.10, 1.8, 0.16)
 
-sfx *= 1 - np.clip((T - 29.2) / 0.8, 0, 1)
+sfx *= 1 - np.clip((T - 35.2) / 0.8, 0, 1)
 
 # ---------------------------------------------------------------- write stems
 def write(path, sig, peak=0.98):

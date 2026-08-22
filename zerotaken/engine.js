@@ -1,5 +1,5 @@
 /* ============================================================================
-   ZEROTAKEN — motion promo engine  ·  9:16  ·  1080x1920  ·  30fps  ·  30.0s
+   ZEROTAKEN — motion promo engine  ·  9:16  ·  1080x1920  ·  30fps  ·  36.0s
    ----------------------------------------------------------------------------
    drawFrame(ctx, tSeconds) is pure and seekable, so the same file drives the
    HTML player and the MP4 render.
@@ -415,25 +415,6 @@
   /* ==========================================================================
      4. BRAND FORMS
      ========================================================================== */
-  function pathZero(ctx, cx, cy, R, k, sy, squash) {
-    sy = sy === undefined ? 1 : sy;
-    squash = squash === undefined ? 1 : squash;
-    var rx = R * 0.66 * k * squash, ry = R * k * sy;
-    var bw = R * 0.155 * k;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, Math.max(1, rx), Math.max(1, ry), 0, 0, TAU, false);
-    ctx.ellipse(cx, cy, Math.max(0.5, rx * 0.50), Math.max(0.5, ry * 0.50), 0, 0, TAU, true);
-    var ang = -Math.PI / 3.05, ca = Math.cos(ang), sa = Math.sin(ang);
-    var L = R * 0.86 * k;
-    var px = -sa * bw * squash, py = ca * bw;
-    var ax = cx - ca * L * squash, ay = cy - sa * L * sy;
-    var bx = cx + ca * L * squash, by = cy + sa * L * sy;
-    ctx.moveTo(ax + px, ay + py * sy);
-    ctx.lineTo(ax - px, ay - py * sy);
-    ctx.lineTo(bx - px, by - py * sy);
-    ctx.lineTo(bx + px, by + py * sy);
-    ctx.closePath();
-  }
   function pathCheck(ctx, cx, cy, s, drawP) {
     drawP = drawP === undefined ? 1 : clamp(drawP);
     var p0 = [cx - s * 0.52, cy - s * 0.02];
@@ -576,138 +557,267 @@
      5. SCENES
      ========================================================================== */
 
-  /* --- 1. LIT-FORM · 0.0–5.0 --------------------------------------------- */
-  function sceneHook(ctx, t, dur) {
-    var fade = lerp(0.62, 1, smooth(inv(t, 0, 0.30)));
-    var out = smooth(inv(t, dur - 0.08, dur));
-    var sw = swell(inv(t, 0, dur * 0.82));
-    var fire = smooth(inv(t, dur - 0.45, dur - 0.09));
+  /* --- 1+2. THE QUESTIONS ------------------------------------------------
+     Built from the same glass-and-halo vocabulary as the TLD ring: a
+     perspective feed of domain chips, scrolling continuously. Beat one asks
+     what you are naming; beat two answers it by striking every line out. */
 
-    var cx = W * 0.5, cy = H * 0.385;
-    var R = W * 0.290 * lerp(1, 1.06, easeOut(inv(t, 0, dur)));
-    var sy = lerp(1, 0.10, fire);
-    var spin = osc(t, 0.115) * 0.075;                 // the form never stops turning
-    var squash = 0.80 + 0.20 * Math.abs(Math.cos(t * 0.72));
-    var hue = mix(C.mint, C.cyan, 0.30 + 0.30 * (0.5 + 0.5 * osc(t, 0.13)));
-    var bloomCol = mix(hue, '#ffffff', fire);
+  var NAME_FEED = [
+    'lumen.com', 'northstar.com', 'atlas.com', 'vertex.com', 'quanta.com',
+    'orbit.com', 'helix.com', 'summit.com', 'aperture.com', 'cobalt.com',
+    'meridian.com', 'kestrel.com', 'lattice.com', 'onyx.com'
+  ];
 
+  /* one glass name chip — dark body, halo hugging the silhouette, lit edge */
+  function chip(ctx, o) {
+    var w = o.w * o.scale, h = o.h * o.scale, r = h / 2;
+    if (o.alpha <= 0.004) return;
+    var x = o.x - w / 2, y = o.y - h / 2;
     ctx.save();
-    ctx.globalAlpha = fade * (1 - out);
+    ctx.globalAlpha = o.alpha;
 
-    ambient(ctx, t, C.mint, 0.55);
-    aurora(ctx, t, C.mint, C.cyan, 0.42);
-    columns(ctx, t, C.mint, 0.55);
-
-    // canopy — the two spills drift against each other
-    glowE(ctx, cx + W * (-0.20 + 0.05 * osc(t, 0.09)), cy + R * 0.86, W * 0.42, H * 0.10, C.mint, 0.46 * sw);
-    glowE(ctx, cx + W * (0.20 + 0.05 * osc(t, 0.09, Math.PI)), cy + R * 0.86, W * 0.42, H * 0.10, C.cyan, 0.40 * sw);
-    glowE(ctx, cx, cy + R * 0.50, W * 0.26, H * 0.07, '#c9fff0', 0.26 * sw);
-
-    // light cone
-    ctx.save();
+    ctx.save();                                          // halo
     ctx.globalCompositeOperation = 'lighter';
-    var spread = [[1.00, 0.17], [1.32, 0.11], [1.72, 0.075], [2.30, 0.045], [3.10, 0.025]];
-    for (var ci = 0; ci < spread.length; ci++) {
-      var kw = spread[ci][0] * (1 + 0.05 * osc(t, 0.19, ci));
-      var ka = spread[ci][1] * sw;
-      var cg = ctx.createLinearGradient(0, cy, 0, H * 1.02);
-      cg.addColorStop(0, hexa(hue, ka));
-      cg.addColorStop(0.50, hexa(hue, ka * 0.30));
-      cg.addColorStop(1, hexa(hue, 0));
-      ctx.fillStyle = cg;
-      ctx.beginPath();
-      ctx.moveTo(cx - R * 0.60 * kw, cy); ctx.lineTo(cx + R * 0.60 * kw, cy);
-      ctx.lineTo(cx + R * 2.2 * kw, H); ctx.lineTo(cx - R * 2.2 * kw, H);
-      ctx.closePath(); ctx.fill();
-    }
+    try { ctx.filter = 'blur(' + (h * 0.40).toFixed(1) + 'px)'; } catch (e) { }
+    rr(ctx, x - h * 0.06, y - h * 0.06, w + h * 0.12, h + h * 0.12, r);
+    var hg = ctx.createLinearGradient(x, y, x + w, y + h);
+    hg.addColorStop(0, hexa(o.hue, 0.60 * o.glow));
+    hg.addColorStop(0.55, hexa(o.hue2 || o.hue, 0.95 * o.glow));
+    hg.addColorStop(1, hexa(o.hue, 0.55 * o.glow));
+    ctx.fillStyle = hg; ctx.fill();
+    try { ctx.filter = 'none'; } catch (e) { }
     ctx.restore();
 
-    orbit(ctx, cx, cy, R * 1.45, R * 2.1, t, 10, C.mint, 0.55, 0.50, 5);
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    for (var bi = 0; bi < 3; bi++) {
-      var bq = ((t * 0.34 + bi / 3) % 1);
-      var by = lerp(cy + R * 0.35, H * 0.96, bq);
-      var ba = 0.20 * Math.sin(bq * Math.PI) * sw;
-      var bg2 = ctx.createLinearGradient(0, by - H * 0.02, 0, by + H * 0.02);
-      bg2.addColorStop(0, hexa(hue, 0));
-      bg2.addColorStop(0.5, hexa(hue, ba));
-      bg2.addColorStop(1, hexa(hue, 0));
-      ctx.fillStyle = bg2;
-      var bw2 = W * (0.35 + 0.55 * bq);
-      ctx.fillRect(cx - bw2 / 2, by - H * 0.02, bw2, H * 0.04);
-    }
+    ctx.save();                                          // contact shadow
+    rr(ctx, x, y + h * 0.10, w, h, r);
+    ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = h * 0.5; ctx.shadowOffsetY = h * 0.16;
+    ctx.fillStyle = '#000'; ctx.fill();
     ctx.restore();
 
-    ctx.save();
-    ctx.translate(cx, cy); ctx.rotate(spin); ctx.translate(-cx, -cy);
-    var LF = [[2.30, 0.20], [1.72, 0.27], [1.34, 0.34], [1.12, 0.40]];
-    shapeBloom(ctx, function (k) { pathZero(ctx, cx - R * 0.075, cy + R * 0.075, R, k, sy, squash); },
-      mix(bloomCol, C.mint, 0.45), (0.78 * sw + 0.65 * fire), LF);
-    shapeBloom(ctx, function (k) { pathZero(ctx, cx + R * 0.075, cy + R * 0.060, R, k, sy, squash); },
-      mix(bloomCol, C.blue, 0.35), (0.66 * sw + 0.55 * fire), LF);
-
-    pathZero(ctx, cx, cy, R, 1, sy, squash);
-    var bg = ctx.createLinearGradient(0, cy - R, 0, cy + R);
-    bg.addColorStop(0, '#16171f'); bg.addColorStop(0.42, '#07070c'); bg.addColorStop(1, '#000000');
+    rr(ctx, x, y, w, h, r);                              // body
+    var bg = ctx.createLinearGradient(x, y, x + w * 0.5, y + h);
+    bg.addColorStop(0, '#191922'); bg.addColorStop(0.45, '#0a0a12'); bg.addColorStop(1, '#030308');
     ctx.fillStyle = bg; ctx.fill();
 
-    pathZero(ctx, cx, cy, R, 1, sy, squash);
-    var rimx = cx - R * (0.7 - 0.5 * (0.5 + 0.5 * osc(t, 0.115)));
-    var rg = ctx.createLinearGradient(rimx, cy - R, cx + R * 0.6, cy + R);
-    rg.addColorStop(0, 'rgba(255,255,255,0.36)');
-    rg.addColorStop(0.32, 'rgba(190,255,230,0.11)');
-    rg.addColorStop(1, 'rgba(255,255,255,0.02)');
-    ctx.lineWidth = Math.max(1.5, R * 0.013);
-    ctx.strokeStyle = rg; ctx.stroke();
-    ctx.restore();
+    rr(ctx, x + 1.5, y + 1.5, w - 3, h - 3, r);          // lit edge
+    var eg = ctx.createLinearGradient(x, y, x + w * 0.7, y + h);
+    eg.addColorStop(0, hexa(o.hue, 0.70));
+    eg.addColorStop(0.28, 'rgba(255,255,255,0.15)');
+    eg.addColorStop(0.75, 'rgba(255,255,255,0.03)');
+    eg.addColorStop(1, hexa(o.hue2 || o.hue, 0.30));
+    ctx.lineWidth = Math.max(1, h * 0.045); ctx.strokeStyle = eg; ctx.stroke();
 
-    var fg = ctx.createLinearGradient(0, H * 0.60, 0, H * 0.92);
-    fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(0.62, 'rgba(0,0,0,0.74)'); fg.addColorStop(1, '#000');
-    ctx.fillStyle = fg; ctx.fillRect(0, H * 0.60, W, H * 0.32);
-
-    // headline, then a light bar that keeps sweeping under it
-    var msg = 'Every name is taken';
-    var p = inv(t, 0.55, 2.30);
-    var size = fitSize(ctx, msg, W * 0.84, W * 0.098, 0);
-    setFont(ctx, '700', size);
-    var tw = ctx.measureText(msg).width;
-    var ty = H * 0.715;
-    ctx.save();
-    ctx.globalAlpha = ctx.globalAlpha * (1 - fire) * smooth(inv(t, 0.48, 0.62));
-    scrim(ctx, cx, ty - size * 0.30, W * 0.62, H * 0.075, 0.88);
-    ctx.shadowColor = 'rgba(140,255,210,0.40)'; ctx.shadowBlur = 24;
-    var per = (2.30 - 0.55) / (msg.length + 0.6);
-    var n = Math.floor(clamp(p) * (msg.length + 0.6));
-    var hold = clamp(1 - (t - (0.55 + n * per)) / 0.26);
-    var r2 = typeOut(ctx, msg, cx - tw / 2, ty, p, size, C.ink, C.mint, hold);
+    var fs = h * 0.42;                                   // the name
+    setFont(ctx, '700', fs);
+    var tx = x + h * 0.62, ty = o.y + fs * 0.35;
+    var tw = ctx.measureText(o.text).width;
+    ctx.fillStyle = o.dim > 0 ? mix('#ffffff', '#6d6d80', o.dim) : '#ffffff';
+    ctx.shadowColor = hexa(o.hue, 0.5); ctx.shadowBlur = fs * 0.5;
+    ctx.fillText(o.text, tx, ty);
     ctx.shadowBlur = 0;
-    if (!r2.done) caret(ctx, r2.x, ty, size, t, 0.9, C.mint);
-    if (r2.done) {
-      var q = ((t - 2.30) % 1.5) / 1.5;
-      var bx = lerp(cx - tw / 2, cx + tw / 2, q);
+
+    if (o.strike > 0.001) {                              // struck through
+      var sl = tw * clamp(o.strike);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      var lg = ctx.createLinearGradient(bx - tw * 0.22, 0, bx + tw * 0.22, 0);
-      lg.addColorStop(0, hexa(C.mint, 0)); lg.addColorStop(0.5, hexa(C.mint, 0.85 * Math.sin(q * Math.PI)));
-      lg.addColorStop(1, hexa(C.mint, 0));
-      ctx.fillStyle = lg;
-      ctx.fillRect(cx - tw / 2, ty + size * 0.30, tw, Math.max(2, size * 0.035));
+      ctx.lineCap = 'round';
+      ctx.lineWidth = Math.max(2, h * 0.075);
+      ctx.strokeStyle = hexa(C.pink, 0.95);
+      ctx.shadowColor = hexa(C.pink, 0.9); ctx.shadowBlur = fs * 0.8;
+      ctx.beginPath();
+      ctx.moveTo(tx - fs * 0.10, o.y + fs * 0.06);
+      ctx.lineTo(tx - fs * 0.10 + sl + fs * 0.20, o.y + fs * 0.06);
+      ctx.stroke();
       ctx.restore();
     }
-    ctx.restore();
 
-    if (fire > 0.01) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      glowE(ctx, cx, cy, W * 0.70 * fire, H * (0.02 + 0.10 * fire), '#ffffff', 0.45 * fire * fire);
+    if (o.badge > 0.001) {                               // ✕ TAKEN stamp
+      var bs = h * 0.30 * easeBack(clamp(o.badge));
+      var bx = x + w - h * 0.62;
+      ctx.save();
+      ctx.translate(bx, o.y);
+      glow(ctx, 0, 0, bs * 3.4, C.pink, 0.60 * clamp(o.badge));
+      ctx.beginPath(); ctx.arc(0, 0, bs, 0, TAU);
+      ctx.fillStyle = mix('#1b0a12', C.pink, 0.18); ctx.fill();
+      ctx.lineWidth = bs * 0.16; ctx.strokeStyle = C.pink; ctx.stroke();
+      ctx.lineCap = 'round';
+      ctx.lineWidth = bs * 0.24; ctx.strokeStyle = '#ffd8e6';
+      ctx.beginPath();
+      ctx.moveTo(-bs * 0.34, -bs * 0.34); ctx.lineTo(bs * 0.34, bs * 0.34);
+      ctx.moveTo(bs * 0.34, -bs * 0.34); ctx.lineTo(-bs * 0.34, bs * 0.34);
+      ctx.stroke();
       ctx.restore();
     }
     ctx.restore();
   }
 
+  /* the scrolling perspective feed both question beats are built on */
+  function feed(ctx, t, o) {
+    var count = 11, step = o.step, focusY = o.focusY;
+    var top = focusY - step * 4;
+    var frac = ((o.scroll % 1) + 1) % 1;
+    var base = Math.floor(o.scroll);
+    for (var i = count - 1; i >= 0; i--) {
+      var yy = top + (i - frac) * step;
+      var idx = ((i + base) % NAME_FEED.length + NAME_FEED.length) % NAME_FEED.length;
+      var d = (yy - focusY) / (H * 0.34);
+      var sc = (1 - Math.min(0.40, Math.abs(d) * 0.30)) * o.scale;
+      var al = clamp(1.25 - Math.abs(d) * 1.25) * o.alpha;
+      if (al <= 0.005) continue;
+      var near = clamp(1 - Math.abs(d) * 1.4);
+      var strike = 0, badge = 0, dim = 0;
+      if (o.taken) {
+        strike = smooth(clamp((focusY - yy) / (step * 0.62)));
+        badge = smooth(clamp((focusY - yy + step * 0.12) / (step * 0.5)));
+        dim = strike * 0.75;
+      }
+      chip(ctx, {
+        x: W / 2 + Math.sin(t * 0.5 + i * 0.9) * W * 0.006,
+        y: yy, w: o.w, h: o.h, scale: sc, alpha: al,
+        text: NAME_FEED[idx],
+        hue: o.taken ? mix(o.hue, C.pink, strike) : o.hue,
+        hue2: o.taken ? mix(o.hue2, C.magenta, strike) : o.hue2,
+        glow: (0.35 + 0.65 * near) * (o.taken ? 0.55 + 0.75 * strike : 1) * o.glow,
+        strike: strike, badge: badge, dim: dim
+      });
+    }
+    // the feed fades out top and bottom rather than being cut off
+    var g1 = ctx.createLinearGradient(0, focusY - step * 4.6, 0, focusY - step * 1.9);
+    g1.addColorStop(0, '#000'); g1.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g1; ctx.fillRect(0, focusY - step * 5.2, W, step * 3.3);
+    var g2 = ctx.createLinearGradient(0, focusY + step * 2.6, 0, focusY + step * 6.2);
+    g2.addColorStop(0, 'rgba(0,0,0,0)'); g2.addColorStop(1, '#000');
+    ctx.fillStyle = g2; ctx.fillRect(0, focusY + step * 2.6, W, step * 3.8);
+  }
+
+  /* a headline question that types, with a light bar sweeping beneath it */
+  function question(ctx, t, txt, y, p, ink, hot, sweepFrom) {
+    var size = fitSize(ctx, txt, W * 0.86, W * 0.092, 0);
+    setFont(ctx, '700', size);
+    var tw = ctx.measureText(txt).width;
+    var cx = W / 2;
+    scrim(ctx, cx, y - size * 0.30, W * 0.62, H * 0.075, 0.88);
+    ctx.save();
+    ctx.shadowColor = hexa(hot, 0.42); ctx.shadowBlur = 26;
+    var n = Math.floor(clamp(p) * (txt.length + 0.6));
+    var per = 1 / (txt.length + 0.6);
+    var hold = clamp(1 - (clamp(p) - n * per) * 9);
+    var r = typeOut(ctx, txt, cx - tw / 2, y, p, size, ink, hot, hold);
+    ctx.shadowBlur = 0;
+    if (!r.done && p > 0.015) caret(ctx, r.x, y, size, t, 0.9, hot);
+    ctx.restore();
+    if (r.done) {
+      var q = ((t - sweepFrom) % 1.4) / 1.4;
+      if (q >= 0) {
+        var bx = lerp(cx - tw / 2, cx + tw / 2, q);
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        var lg = ctx.createLinearGradient(bx - tw * 0.24, 0, bx + tw * 0.24, 0);
+        lg.addColorStop(0, hexa(hot, 0));
+        lg.addColorStop(0.5, hexa(hot, 0.85 * Math.sin(q * Math.PI)));
+        lg.addColorStop(1, hexa(hot, 0));
+        ctx.fillStyle = lg;
+        ctx.fillRect(cx - tw / 2, y + size * 0.30, tw, Math.max(2, size * 0.035));
+        ctx.restore();
+      }
+    }
+    return size;
+  }
+
+  /* --- 1. QUESTION ONE · 0.0–4.0 ----------------------------------------- */
+  function sceneAsk(ctx, t, dur) {
+    var fade = 1, out = 0;
+    var sw = swell(inv(t, 0, dur * 0.86));
+    var focusY = H * 0.635, step = H * 0.098;
+
+    ctx.save();
+    ctx.globalAlpha = fade * (1 - out);
+    ambient(ctx, t, C.mint, 0.55);
+    aurora(ctx, t, C.mint, C.cyan, 0.40);
+    columns(ctx, t, C.mint, 0.50);
+    glowE(ctx, W / 2, focusY, W * 0.62, H * 0.13, C.mint, 0.20 * sw);
+
+    // the feed builds as it starts moving — chips arrive, they do not pop in
+    var build = lerp(0.42, 1, easeOut(inv(t, 0, 1.25)));
+    feed(ctx, t, {
+      scroll: 3.4 + easeOut(inv(t, 0, dur)) * 2.1 + t * 0.16,
+      focusY: focusY, step: step, w: W * 0.76, h: H * 0.062,
+      scale: lerp(0.62, 1, build), alpha: build, glow: 0.55 + 0.45 * sw,
+      hue: C.mint, hue2: C.cyan, taken: false
+    });
+
+    // a scan bar riding the focus row
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    var q = (t * 0.62) % 1;
+    var bw = W * 0.80;
+    var sg = ctx.createLinearGradient(W / 2 - bw / 2, 0, W / 2 + bw / 2, 0);
+    sg.addColorStop(0, hexa(C.mint, 0));
+    sg.addColorStop(clamp(q, 0.02, 0.98), hexa(C.mint, 0.60 * sw));
+    sg.addColorStop(1, hexa(C.mint, 0));
+    ctx.fillStyle = sg;
+    ctx.fillRect(W / 2 - bw / 2, focusY + step * 0.40, bw, Math.max(2, H * 0.0022));
+    ctx.restore();
+
+    question(ctx, t, 'Naming your startup?', H * 0.225,
+      inv(t, 0.30, 1.85), C.ink, C.mint, 1.85);
+
+    var la = smooth(inv(t, 1.95, 2.35));
+    if (la > 0.01) {
+      ctx.save();
+      wipeLabel(ctx, 'IDEA  ·  NAME  ·  DOMAIN', H * 0.295, W * 0.028,
+        '#ffffff', W * 0.0095, inv(t, 1.95, 2.60), la * 0.48);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  /* --- 2. QUESTION TWO · 4.0–8.0 ----------------------------------------- */
+  function sceneTaken(ctx, t, dur) {
+    var out = 0;
+    var sw = swell(inv(t, 0, dur * 0.84));
+    var focusY = H * 0.635, step = H * 0.098;
+    var rush = easeIn(inv(t, dur - 0.70, dur - 0.06));   // the feed runs away at the end
+
+    ctx.save();
+    ctx.globalAlpha = 1 - out;
+    ambient(ctx, t, C.pink, 0.55);
+    aurora(ctx, t, C.pink, C.magenta, 0.50);
+    columns(ctx, t, C.pink, 0.55);
+    glowE(ctx, W / 2, focusY, W * 0.66, H * 0.15, C.pink, (0.18 + 0.16 * sw) + 0.5 * rush);
+
+    feed(ctx, t, {
+      scroll: 6.15 + t * 0.72 + rush * 7.0,
+      focusY: focusY, step: step, w: W * 0.76, h: H * 0.062,
+      scale: 1, alpha: 1, glow: 0.55 + 0.45 * sw,
+      hue: C.violet, hue2: C.indigo, taken: true
+    });
+
+    question(ctx, t, 'Every .com already gone?', H * 0.225,
+      inv(t, 0.18, 1.80), C.ink, C.pink, 1.80);
+
+    var la = smooth(inv(t, 1.90, 2.30));
+    if (la > 0.01) {
+      ctx.save();
+      wipeLabel(ctx, 'TAKEN  ·  TAKEN  ·  TAKEN', H * 0.295, W * 0.028,
+        C.pink, W * 0.0095, inv(t, 1.90, 2.55), la * 0.55);
+      ctx.restore();
+    }
+
+    if (rush > 0.01) {                                   // whip out to the reveal
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = hexa('#ffffff', 0.30 * rush * rush);
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+
   /* --- 2. SHOCKWAVE + WORDMARK-SNAP · 5.0–9.0 ---------------------------- */
   function sceneBrand(ctx, t, dur) {
-    var out = smooth(inv(t, dur - 0.08, dur));
+    var out = 0;
     var cx = W * 0.5, cy = H * 0.44;
     var SNAP = 0.98;
     var snapped = t >= SNAP;
@@ -778,7 +888,7 @@
     ['dyadkit.dev', 'shipbarn.io', 'nooklab.com']
   ];
   function scenePrompt(ctx, t, dur) {
-    var fade = smooth(inv(t, 0, 0.10)) * (1 - smooth(inv(t, dur - 0.09, dur)));
+    var fade = 1;
     var lines = ['fintech for freelancers', 'an AI photo editor', 'tool for indie devs'];
     var cols = [[C.mint, C.blue], [C.blue, C.violet], [C.violet, C.magenta]];
     var each = dur / lines.length;
@@ -803,7 +913,7 @@
       if (p < -0.09 || p > 1.00) continue;
 
       var inP = easeOut(inv(p, -0.09, 0.15));
-      var outP = smooth(inv(p, 0.80, 0.99));
+      var outP = (i === lines.length - 1) ? 0 : smooth(inv(p, 0.80, 0.99));
       var float = Math.sin((t + i) * 1.35) * H * 0.006;
       var slide = lerp(H * 0.20, 0, inP) - outP * H * 0.28 + float;
       var scl = lerp(0.72, 1, inP) * lerp(1, 0.48, outP);
@@ -904,7 +1014,7 @@
   var TLDS = ['.com', '.io', '.ai', '.app', '.dev', '.co', '.net', '.xyz'];
   var TLD_HUES = ['#35ffa8', '#5df08a', '#4ec8ff', '#2f8bff', '#1f4cff', '#6b5bff', '#7a2bff', '#35ffa8'];
   function sceneTLDs(ctx, t, dur) {
-    var fade = smooth(inv(t, 0, 0.09)) * (1 - smooth(inv(t, dur - 0.09, dur)));
+    var fade = 1;
     ctx.save();
     ctx.globalAlpha = fade;
     ambient(ctx, t, C.mint, 0.55);
@@ -954,7 +1064,7 @@
 
   /* --- 5. STAT-SLAM · 18.0–21.0 ------------------------------------------ */
   function sceneScore(ctx, t, dur) {
-    var fade = smooth(inv(t, 0, 0.06)) * (1 - smooth(inv(t, dur - 0.08, dur)));
+    var fade = 1;
     var cx = W * 0.5, cy = H * 0.435;
     var R = W * 0.315;
     var p = easeOut4(inv(t, 0.08, 1.05));
@@ -1044,6 +1154,9 @@
     wipeLabel(ctx, 'BRAND  QUALITY  SCORE', cy + R * 1.42, W * 0.030, '#ffffff',
       W * 0.0105 * (1 + 0.04 * osc(t, 0.3)), inv(t, 0.85, 1.45), fade * 0.58);
     ctx.restore();
+
+    shockwave(ctx, cx, cy, inv(t, 1.90, 2.70), hue, 0.16, W * 1.7);
+    shockwave(ctx, cx, cy, inv(t, 2.90, 3.70), C.magenta, 0.13, W * 1.7);
 
     var ea = smooth(inv(t, 1.10, 1.40));
     if (ea > 0.01) {
@@ -1162,15 +1275,15 @@
   /* --- 7. HERO-PEEL + SYMBOL-MORPH · 25.0–30.0 --------------------------- */
   function sceneClose(ctx, t, dur) {
     var cx = W * 0.5;
-    var sw = swell(inv(t, 0, 2.0));
-    var hue = ramp([C.blue, C.indigo, C.violet, C.ember, C.orange], inv(t, 0.05, 1.90));
-    var rise = smooth(inv(t, 0.15, 2.10));
+    var sw = swell(inv(t, 0, 2.4));
+    var hue = ramp([C.blue, C.indigo, C.violet, C.ember, C.orange], inv(t, 0.05, 2.30));
+    var rise = smooth(inv(t, 0.15, 2.55));
     var cyT = lerp(H * 0.50, H * 0.360, rise) + Math.sin(t * 0.85) * H * 0.004;
-    var size = lerp(W * 0.20, W * 0.375, easeOut(inv(t, 0.00, 1.35)));
-    var morph = smooth(inv(t, 0.86, 1.22));
-    var bodyA = 1 - smooth(inv(t, 1.30, 1.80));
-    var freeS = lerp(1, 1.28, smooth(inv(t, 1.24, 2.10)));
-    var SNAP = 2.10;
+    var size = lerp(W * 0.20, W * 0.375, easeOut(inv(t, 0.00, 1.60)));
+    var morph = smooth(inv(t, 1.00, 1.42));
+    var bodyA = 1 - smooth(inv(t, 1.52, 2.06));
+    var freeS = lerp(1, 1.28, smooth(inv(t, 1.44, 2.60)));
+    var SNAP = 2.60;
     var snapped = t >= SNAP;
     var flash = 1 - smooth(inv(t, SNAP, SNAP + 0.22));
 
@@ -1180,7 +1293,7 @@
 
     glowE(ctx, cx, cyT, W * 0.50 * (0.8 + 0.3 * sw), H * 0.17 * (0.8 + 0.3 * sw), hue, 0.42 * sw);
     // sparks spiral into the mark, then keep orbiting it
-    orbit(ctx, cx, cyT, size * (1.6 - 0.5 * smooth(inv(t, 0, 1.6))), size * 1.5, t, 12, hue, 0.55, 0.62, 17);
+    orbit(ctx, cx, cyT, size * (1.7 - 0.55 * smooth(inv(t, 0, 1.9))), size * 1.5, t, 12, hue, 0.55, 0.62, 17);
 
     var noSym = function () { };
     if (morph < 0.995) {
@@ -1223,11 +1336,33 @@
       shockwave(ctx, cx, H * 0.60, inv(t, SNAP + 2.00, SNAP + 2.90), C.gold, 0.09, W * 2.0);
       glowE(ctx, cx, H * 0.655, W * 0.60 * (0.9 + 0.18 * osc(t, 0.5)), H * 0.10, C.orange, 0.16 + 0.08 * lsw);
 
-      var ua = smooth(inv(t, 2.58, 2.95));
+      var ua = smooth(inv(t, 3.06, 3.44));
       if (ua > 0.01) {
         ctx.save();
-        wipeLabel(ctx, 'ZEROTAKEN.COM', H * 0.815, W * 0.036, '#ffffff',
-          W * 0.013 * (1 + 0.05 * osc(t, 0.28)), inv(t, 2.58, 3.30), ua * 0.75);
+        wipeLabel(ctx, 'ZEROTAKEN.COM', H * 0.812, W * 0.036, '#ffffff',
+          W * 0.013 * (1 + 0.05 * osc(t, 0.28)), inv(t, 3.06, 3.80), ua * 0.78);
+        ctx.restore();
+      }
+      var ca = smooth(inv(t, 4.05, 4.45));
+      if (ca > 0.01) {
+        ctx.save();
+        var cw2 = W * 0.46 * lerp(0.9, 1, easeOut(inv(t, 4.05, 4.55))), ch2 = H * 0.048;
+        var cx2 = cx - cw2 / 2, cy2 = H * 0.878 - ch2 / 2;
+        ctx.globalAlpha = ca;
+        shapeBloom(ctx, function (k) {
+          rr(ctx, cx2 - cw2 * (k - 1) * 0.12, cy2 - ch2 * (k - 1) * 0.5,
+            cw2 * (1 + (k - 1) * 0.24), ch2 * k, ch2 * k / 2);
+        }, C.orange, 0.75 * (0.6 + 0.5 * lsw), [[2.2, 0.20], [1.7, 0.26], [1.3, 0.30], [1.1, 0.32]]);
+        rr(ctx, cx2, cy2, cw2, ch2, ch2 / 2);
+        var cg2 = ctx.createLinearGradient(cx2, cy2, cx2 + cw2, cy2 + ch2);
+        cg2.addColorStop(0, '#ffb347'); cg2.addColorStop(1, C.orange);
+        ctx.fillStyle = cg2; ctx.fill();
+        setFont(ctx, '700', W * 0.030);
+        var lbl = 'FREE  TO  SEARCH';
+        var lw2 = trackW(ctx, lbl, W * 0.010);
+        ctx.fillStyle = '#1a0d02';
+        trackFill(ctx, lbl, cx - lw2 / 2, cy2 + ch2 * 0.66, W * 0.010);
+        sheen(ctx, cx2, cy2, cw2, ch2, ch2 / 2, t - 4.05, 1.5, '#ffffff', 0.45);
         ctx.restore();
       }
     }
@@ -1253,13 +1388,14 @@
     };
   }
   var TIMELINE = [
-    { name: 'hook', end: 5.0, fn: sceneHook, cam: cam(1.00, 1.09, 0, 0, 0, -0.012) },
-    { name: 'brand', end: 9.0, fn: sceneBrand, cam: cam(1.14, 1.00, 0, 0, 0, 0) },
-    { name: 'prompt', end: 14.0, fn: scenePrompt, cam: cam(1.00, 1.06, 0.010, -0.010, 0, 0) },
-    { name: 'tlds', end: 18.0, fn: sceneTLDs, cam: cam(1.16, 1.00, 0, 0, 0, 0) },
-    { name: 'score', end: 21.0, fn: sceneScore, cam: cam(1.00, 1.07, 0, 0, 0.008, -0.004) },
-    { name: 'proof', end: 25.0, fn: sceneProof, cam: cam(1.10, 1.00, -0.012, 0.008, 0, 0) },
-    { name: 'close', end: 30.0, fn: sceneClose, cam: cam(1.00, 1.08, 0, 0, 0, -0.006) }
+    { name: 'ask', end: 4.0, fn: sceneAsk, cam: cam(1.00, 1.10, 0, 0, 0, -0.010) },
+    { name: 'taken', end: 8.0, fn: sceneTaken, cam: cam(1.08, 1.00, 0, 0, -0.006, 0.006) },
+    { name: 'brand', end: 12.0, fn: sceneBrand, cam: cam(1.14, 1.00, 0, 0, 0, 0) },
+    { name: 'prompt', end: 18.0, fn: scenePrompt, cam: cam(1.00, 1.06, 0.010, -0.010, 0, 0) },
+    { name: 'tlds', end: 22.0, fn: sceneTLDs, cam: cam(1.16, 1.00, 0, 0, 0, 0) },
+    { name: 'score', end: 26.0, fn: sceneScore, cam: cam(1.00, 1.07, 0, 0, 0.008, -0.004) },
+    { name: 'proof', end: 30.0, fn: sceneProof, cam: cam(1.10, 1.00, -0.012, 0.008, 0, 0) },
+    { name: 'close', end: 36.0, fn: sceneClose, cam: cam(1.00, 1.09, 0, 0, 0, -0.006) }
   ];
   var DUR = TIMELINE[TIMELINE.length - 1].end;
 
@@ -1306,7 +1442,7 @@
       centred: centred, wipeLabel: wipeLabel, typeOut: typeOut, caret: caret,
       slab: slab, lockup: lockup, shockwave: shockwave, ambient: ambient,
       aurora: aurora, sheen: sheen, orbit: orbit,
-      pathZero: pathZero, pathCheck: pathCheck, checkSym: checkSym,
+      chip: chip, feed: feed, pathCheck: pathCheck, checkSym: checkSym,
       tldSym: tldSym, sparkSym: sparkSym
     }
   };
