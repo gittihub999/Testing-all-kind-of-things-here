@@ -2,3 +2,5 @@ node_modules/
 frames/
 prev/
 package-lock.json
+audio/*.wav
+audio/duck.npy
