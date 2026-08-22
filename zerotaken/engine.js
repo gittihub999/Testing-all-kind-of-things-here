@@ -1,5 +1,5 @@
 /* ============================================================================
-   ZEROTAKEN — motion promo engine  ·  9:16  ·  1080x1920  ·  30fps  ·  36.0s
+   ZEROTAKEN — motion promo engine  ·  9:16  ·  1080x1920  ·  30fps  ·  46.0s
    ----------------------------------------------------------------------------
    drawFrame(ctx, tSeconds) is pure and seekable, so the same file drives the
    HTML player and the MP4 render.
@@ -180,7 +180,15 @@
   /* small caps line that wipes on letter by letter — a label that is never still */
   function wipeLabel(ctx, txt, y, size, col, sp, p, alpha) {
     setFont(ctx, '700', size);
-    var w = trackW(ctx, txt, sp), x = (W - w) / 2;
+    var w = trackW(ctx, txt, sp);
+    var max = W * 0.88;
+    if (w > max) {                                     // auto-fit
+      var k = max / w;
+      size *= k; sp *= k;
+      setFont(ctx, '700', size);
+      w = trackW(ctx, txt, sp);
+    }
+    var x = (W - w) / 2;
     var n = clamp(p) * txt.length;
     for (var i = 0; i < txt.length; i++) {
       var la = clamp(n - i);
@@ -311,9 +319,86 @@
     ctx.restore();
   }
 
+  /* headline words rising out of a mask, staggered — the premium alternative
+     to a typewriter for anything that is not a search box */
+  function riseWords(ctx, txt, y, size, p, o) {
+    o = o || {};
+    var words = txt.split(' ');
+    setFont(ctx, '700', size);
+    var sp = ctx.measureText(' ').width;
+    var widths = [], total = 0, i;
+    for (i = 0; i < words.length; i++) { widths.push(ctx.measureText(words[i]).width); total += widths[i]; }
+    total += sp * (words.length - 1);
+    var x = (o.left === undefined ? (W - total) / 2 : o.left);
+    var stag = o.stagger === undefined ? 0.11 : o.stagger;
+    var span = o.span === undefined ? 0.44 : o.span;
+    var pa = ctx.globalAlpha;
+    for (i = 0; i < words.length; i++) {
+      var wp = easeOut(inv(p, i * stag, i * stag + span));
+      if (wp > 0.002) {
+        var hot = o.hotWords && o.hotWords.indexOf(i) >= 0;
+        var col = hot ? (o.hot || C.mint) : (o.ink || C.ink);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x - size * 0.16, y - size * 1.06, widths[i] + size * 0.32, size * 1.34);
+        ctx.clip();
+        ctx.globalAlpha = pa * Math.min(1, wp * 1.7);
+        ctx.fillStyle = col;
+        ctx.shadowColor = hexa(hot ? col : '#ffffff', hot ? 0.60 : 0.28);
+        ctx.shadowBlur = size * (hot ? 0.55 : 0.28);
+        ctx.fillText(words[i], x, y + (1 - wp) * size * 0.95);
+        ctx.restore();
+      }
+      x += widths[i] + sp;
+    }
+    return { width: total, done: p >= (words.length - 1) * stag + span };
+  }
+
+  /* anamorphic lens streak — what real bright highlights do to a lens */
+  function streak(ctx, x, y, len, col, a) {
+    if (a <= 0.003 || len <= 1) return;
+    glowE(ctx, x, y, len, Math.max(2, len * 0.032), col, a);
+    glowE(ctx, x, y, len * 0.52, Math.max(2, len * 0.011), '#ffffff', a * 0.65);
+  }
+
+  function vignette(ctx, amt) {
+    var g = ctx.createRadialGradient(W / 2, H * 0.47, Math.min(W, H) * 0.30,
+      W / 2, H * 0.47, Math.max(W, H) * 0.70);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.62, 'rgba(0,0,0,' + (amt * 0.30).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(0,0,0,' + amt.toFixed(3) + ')');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+
+  /* film grain, keyed to the OUTPUT frame so it survives motion-blur
+     averaging instead of being smoothed away */
+  var GRAIN = (function () {
+    var r = rng(99173), a = new Float32Array(7000 * 3);
+    for (var i = 0; i < 7000; i++) { a[i * 3] = r(); a[i * 3 + 1] = r(); a[i * 3 + 2] = r(); }
+    return a;
+  })();
+  function grain(ctx, t, amt) {
+    if (amt <= 0.002) return;
+    var f = Math.round(t * FPS);
+    var off = (f * 1361) % 5200;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (var b = 0; b < 3; b++) {
+      ctx.fillStyle = 'rgba(255,255,255,' + (amt * (0.30 + b * 0.34)).toFixed(4) + ')';
+      for (var i = b; i < 1500; i += 3) {
+        var j = ((i + off) % 7000) * 3;
+        ctx.fillRect((GRAIN[j] * W) | 0, (GRAIN[j + 1] * H) | 0, 2, 2);
+      }
+    }
+    ctx.restore();
+  }
+
   function slab(ctx, o) {
     var s = o.size, h = s / 2, r = s * 0.325, a = o.alpha === undefined ? 1 : o.alpha;
     var bodyA = o.bodyA === undefined ? 1 : o.bodyA;
+    var DF = o.blur || 0;                                // depth of field
+    var setDF = function () { if (DF > 0.25) { try { ctx.filter = 'blur(' + DF.toFixed(1) + 'px)'; } catch (e) { } } };
+    var clrDF = function () { if (DF > 0.25) { try { ctx.filter = 'none'; } catch (e) { } } };
     if (a <= 0.004) return;
     ctx.save();
     ctx.globalAlpha = a;
@@ -326,7 +411,7 @@
       ctx.save();
       ctx.globalAlpha = a * bodyA;
       ctx.globalCompositeOperation = 'lighter';
-      try { ctx.filter = 'blur(' + (s * 0.185).toFixed(1) + 'px)'; } catch (e) { }
+      try { ctx.filter = 'blur(' + (s * 0.185 + DF).toFixed(1) + 'px)'; } catch (e) { }
       rr(ctx, -h * 1.05, -h * 1.02, s * 1.10, s * 1.10, r * 1.08);
       var hg = ctx.createLinearGradient(-h, -h, h, h);
       hg.addColorStop(0, hexa(o.halo || o.c2, 0.85));
@@ -345,10 +430,12 @@
 
       ctx.save();
       ctx.globalAlpha = a * bodyA;
+      setDF();
       rr(ctx, -h, -h, s, s, r);
       var bg = ctx.createLinearGradient(-h, -h, h * 0.5, h);
       bg.addColorStop(0, '#181822'); bg.addColorStop(0.42, '#0a0a12'); bg.addColorStop(1, '#020206');
       ctx.fillStyle = bg; ctx.fill();
+      clrDF();
       ctx.restore();
 
       ctx.save();
@@ -365,6 +452,7 @@
     }
 
     ctx.save();
+    setDF();
     ctx.shadowColor = hexa(o.glowCol || o.c1, 0.95);
     ctx.shadowBlur = s * (o.glowCol ? 0.40 : 0.30);
     var fill = o.symbolCol || g;
@@ -541,7 +629,7 @@
   }
   function shockwave(ctx, cx, cy, p, color, amp, maxR) {
     if (p <= 0 || p >= 1) return;
-    var r = lerp(20, maxR, p), th = lerp(60, 210, p);
+    var r = lerp(20, maxR, p), th = lerp(90, 340, p);
     var a = (1 - smooth(inv(p, 0.38, 1))) * amp;
     var g = ctx.createRadialGradient(cx, cy, Math.max(1, r - th), cx, cy, r + th * 0.55);
     g.addColorStop(0, hexa(color, 0));
@@ -690,36 +778,27 @@
     ctx.fillStyle = g2; ctx.fillRect(0, focusY + step * 2.6, W, step * 3.8);
   }
 
-  /* a headline question that types, with a light bar sweeping beneath it */
-  function question(ctx, t, txt, y, p, ink, hot, sweepFrom) {
-    var size = fitSize(ctx, txt, W * 0.86, W * 0.092, 0);
+  /* a headline that rises out of a mask, with a light bar sweeping under it */
+  function headline(ctx, t, txt, y, p, o) {
+    o = o || {};
+    var size = fitSize(ctx, txt, W * 0.86, o.size || W * 0.094, 0);
     setFont(ctx, '700', size);
-    var tw = ctx.measureText(txt).width;
-    var cx = W / 2;
-    scrim(ctx, cx, y - size * 0.30, W * 0.62, H * 0.075, 0.88);
-    ctx.save();
-    ctx.shadowColor = hexa(hot, 0.42); ctx.shadowBlur = 26;
-    var n = Math.floor(clamp(p) * (txt.length + 0.6));
-    var per = 1 / (txt.length + 0.6);
-    var hold = clamp(1 - (clamp(p) - n * per) * 9);
-    var r = typeOut(ctx, txt, cx - tw / 2, y, p, size, ink, hot, hold);
-    ctx.shadowBlur = 0;
-    if (!r.done && p > 0.015) caret(ctx, r.x, y, size, t, 0.9, hot);
-    ctx.restore();
-    if (r.done) {
-      var q = ((t - sweepFrom) % 1.4) / 1.4;
-      if (q >= 0) {
-        var bx = lerp(cx - tw / 2, cx + tw / 2, q);
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        var lg = ctx.createLinearGradient(bx - tw * 0.24, 0, bx + tw * 0.24, 0);
-        lg.addColorStop(0, hexa(hot, 0));
-        lg.addColorStop(0.5, hexa(hot, 0.85 * Math.sin(q * Math.PI)));
-        lg.addColorStop(1, hexa(hot, 0));
-        ctx.fillStyle = lg;
-        ctx.fillRect(cx - tw / 2, y + size * 0.30, tw, Math.max(2, size * 0.035));
-        ctx.restore();
-      }
+    scrim(ctx, W / 2, y - size * 0.32, W * 0.64, H * 0.072, o.scrim === undefined ? 0.86 : o.scrim);
+    var r = riseWords(ctx, txt, y, size, p, o);
+    if (o.sweep !== false && p > 0.98) {
+      var q = ((t - (o.sweepFrom || 0)) % 1.5) / 1.5;
+      var cx = W / 2;
+      var bx = lerp(cx - r.width / 2, cx + r.width / 2, q);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      var lg = ctx.createLinearGradient(bx - r.width * 0.24, 0, bx + r.width * 0.24, 0);
+      var hc = o.hot || C.mint;
+      lg.addColorStop(0, hexa(hc, 0));
+      lg.addColorStop(0.5, hexa(hc, 0.80 * Math.sin(q * Math.PI)));
+      lg.addColorStop(1, hexa(hc, 0));
+      ctx.fillStyle = lg;
+      ctx.fillRect(cx - r.width / 2, y + size * 0.30, r.width, Math.max(2, size * 0.032));
+      ctx.restore();
     }
     return size;
   }
@@ -759,8 +838,8 @@
     ctx.fillRect(W / 2 - bw / 2, focusY + step * 0.40, bw, Math.max(2, H * 0.0022));
     ctx.restore();
 
-    question(ctx, t, 'Naming your startup?', H * 0.225,
-      inv(t, 0.30, 1.85), C.ink, C.mint, 1.85);
+    headline(ctx, t, 'Naming your startup?', H * 0.225, inv(t, 0.22, 1.30),
+      { hot: C.mint, hotWords: [2], sweepFrom: 1.30 });
 
     var la = smooth(inv(t, 1.95, 2.35));
     if (la > 0.01) {
@@ -793,8 +872,8 @@
       hue: C.violet, hue2: C.indigo, taken: true
     });
 
-    question(ctx, t, 'Every .com already gone?', H * 0.225,
-      inv(t, 0.18, 1.80), C.ink, C.pink, 1.80);
+    headline(ctx, t, 'Every good .com is gone', H * 0.225, inv(t, 0.12, 1.25),
+      { hot: C.pink, hotWords: [2], sweepFrom: 1.25 });
 
     var la = smooth(inv(t, 1.90, 2.30));
     if (la > 0.01) {
@@ -815,6 +894,195 @@
   }
 
 
+  /* --- 3. THE PREMIUM TRAP · 8.0–12.0 -----------------------------------
+     Their users' number one complaint: an AI generator hands you a name, you
+     get excited, and it turns out to be a $2,450 aftermarket listing. The
+     chip flips from AVAILABLE to a price and gets stamped. */
+  function sceneTrap(ctx, t, dur) {
+    var cx = W / 2, cy = H * 0.505;
+    var cw = W * 0.86, ch = H * 0.102;
+    var sw = swell(inv(t, 0, dur * 0.82));
+
+    var inP = easeBack(inv(t, 0.00, 0.52));
+    var FLIP0 = 1.42, FLIP1 = 1.74, MID = (FLIP0 + FLIP1) / 2;
+    var flipped = t >= MID;
+    var fx = t < FLIP0 ? 1 : (t > FLIP1 ? 1 :
+      (t < MID ? 1 - easeIn(inv(t, FLIP0, MID)) : easeOut(inv(t, MID, FLIP1))));
+    var stamp = smooth(inv(t, 1.80, 2.02));
+    var tip = easeIn(inv(t, 3.40, 4.60));            // it tips over and sinks
+    var hue = flipped ? mix(C.ember, C.pink, 0.45) : C.mint;
+
+    ctx.save();
+    ambient(ctx, t, flipped ? C.pink : C.mint, 0.55);
+    aurora(ctx, t, flipped ? C.pink : C.mint, flipped ? C.ember : C.cyan, 0.48);
+    columns(ctx, t, flipped ? C.pink : C.mint, 0.45);
+
+    // the traps stacking up behind — receding, out of focus
+    for (var k = 0; k < 2; k++) {
+      var kp = smooth(inv(t, 2.16 + k * 0.34, 2.80 + k * 0.34));
+      if (kp <= 0.002) continue;
+      var kfall = 0;
+      var ky = cy - H * (0.135 + k * 0.070) * kp + kfall * H * 0.55;
+      var ks = 0.80 - k * 0.10;
+      ctx.save();
+      ctx.globalAlpha = kp * (1 - kfall) * 0.85;
+      ctx.translate(cx, ky); ctx.rotate((k - 1) * 0.035 + kfall * 0.25); ctx.translate(-cx, -ky);
+      try { ctx.filter = 'blur(' + (2.2 + k * 2.0).toFixed(1) + 'px)'; } catch (e) { }
+      priceChip(ctx, cx, ky, cw * ks, ch * ks, ['$4,900', '$12,000'][k], C.pink, 0.9);
+      try { ctx.filter = 'none'; } catch (e) { }
+      ctx.restore();
+    }
+
+    // the hero chip
+    ctx.save();
+    var hy = cy + (1 - inP) * H * 0.10 + Math.sin(t * 1.15) * H * 0.004 + tip * H * 0.62;
+    ctx.globalAlpha = Math.min(1, inP * 1.6);
+    ctx.translate(cx, hy); ctx.rotate(tip * 0.30); ctx.translate(-cx, -hy);
+    ctx.save();
+    ctx.translate(cx, hy); ctx.scale(Math.max(0.02, fx), 1); ctx.translate(-cx, -hy);
+    if (!flipped) {
+      okChip(ctx, cx, hy, cw, ch, 'northstar.com', C.mint, smooth(inv(t, 0.42, 0.72)) * sw);
+    } else {
+      priceChip(ctx, cx, hy, cw, ch, '$2,450', C.pink, 0.6 + 0.5 * sw);
+    }
+    ctx.restore();
+    // the edge flash as it turns through the side
+    if (fx < 0.30) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      streak(ctx, cx, hy, cw * 0.72, '#ffffff', (1 - fx / 0.30) * 0.85);
+      ctx.restore();
+    }
+    if (stamp > 0.01) {
+      var ss = ch * 0.40 * easeBack(stamp);
+      ctx.save();
+      ctx.translate(cx + cw / 2 - ch * 0.52, hy);
+      glow(ctx, 0, 0, ss * 3.6, C.pink, 0.65 * stamp);
+      ctx.beginPath(); ctx.arc(0, 0, ss, 0, TAU);
+      ctx.fillStyle = mix('#1b0a12', C.pink, 0.20); ctx.fill();
+      ctx.lineWidth = ss * 0.16; ctx.strokeStyle = C.pink; ctx.stroke();
+      ctx.lineCap = 'round'; ctx.lineWidth = ss * 0.24; ctx.strokeStyle = '#ffd8e6';
+      ctx.beginPath();
+      ctx.moveTo(-ss * 0.34, -ss * 0.34); ctx.lineTo(ss * 0.34, ss * 0.34);
+      ctx.moveTo(ss * 0.34, -ss * 0.34); ctx.lineTo(-ss * 0.34, ss * 0.34);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    if (stamp > 0.01 && stamp < 1) shockwave(ctx, cx, hy, inv(t, 1.80, 2.60), C.pink, 0.30, W * 1.5);
+
+    // headline swaps from the promise to the price
+    var s1 = 1 - smooth(inv(t, 1.30, 1.62));
+    if (s1 > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = s1;
+      ctx.translate(0, -(1 - s1) * H * 0.045);
+      headline(ctx, t, 'Available.', H * 0.235, inv(t, 0.20, 0.90),
+        { hot: C.mint, hotWords: [0], sweep: false });
+      ctx.restore();
+    }
+    var s2 = smooth(inv(t, 1.62, 1.96));
+    if (s2 > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = s2;
+      ctx.translate(0, (1 - s2) * H * 0.045);
+      headline(ctx, t, 'For $2,450.', H * 0.235, inv(t, 1.62, 2.30),
+        { hot: C.pink, hotWords: [1], sweepFrom: 2.30 });
+      ctx.restore();
+    }
+
+    var la = smooth(inv(t, 2.30, 2.70));
+    if (la > 0.01) {
+      ctx.save();
+      wipeLabel(ctx, 'PREMIUM · AFTERMARKET · BROKER MARKUP', H * 0.815, W * 0.024,
+        C.pink, W * 0.0060, inv(t, 2.30, 3.10), la * 0.62);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  /* a wide result chip in its two states */
+  function chipShell(ctx, x, y, w, h, hue, glowAmt) {
+    var r = h / 2;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    try { ctx.filter = 'blur(' + (h * 0.42).toFixed(1) + 'px)'; } catch (e) { }
+    rr(ctx, x - w / 2, y - h / 2, w, h, r);
+    ctx.fillStyle = hexa(hue, 0.55 * glowAmt); ctx.fill();
+    try { ctx.filter = 'none'; } catch (e) { }
+    ctx.restore();
+    ctx.save();
+    rr(ctx, x - w / 2, y - h / 2 + h * 0.10, w, h, r);
+    ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = h * 0.5; ctx.shadowOffsetY = h * 0.14;
+    ctx.fillStyle = '#000'; ctx.fill();
+    ctx.restore();
+    rr(ctx, x - w / 2, y - h / 2, w, h, r);
+    var bg = ctx.createLinearGradient(x - w / 2, y - h / 2, x + w * 0.1, y + h / 2);
+    bg.addColorStop(0, '#1b1b25'); bg.addColorStop(0.45, '#0b0b13'); bg.addColorStop(1, '#030308');
+    ctx.fillStyle = bg; ctx.fill();
+    rr(ctx, x - w / 2 + 2, y - h / 2 + 2, w - 4, h - 4, r);
+    var eg = ctx.createLinearGradient(x - w / 2, y - h / 2, x + w * 0.6, y + h / 2);
+    eg.addColorStop(0, hexa(hue, 0.80));
+    eg.addColorStop(0.30, 'rgba(255,255,255,0.16)');
+    eg.addColorStop(1, hexa(hue, 0.30));
+    ctx.lineWidth = Math.max(1.4, h * 0.030); ctx.strokeStyle = eg; ctx.stroke();
+  }
+  function okChip(ctx, x, y, w, h, text, hue, badge) {
+    chipShell(ctx, x, y, w, h, hue, 0.55 + 0.45 * badge);
+    var right = x + w / 2 - h * 0.42;
+    var bp = clamp(badge);
+    setFont(ctx, '700', h * 0.185);
+    var lblw = ctx.measureText('AVAILABLE').width;
+    var bs = h * 0.185;
+    if (bp > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = ctx.globalAlpha * bp * 0.92;
+      ctx.fillStyle = hue;
+      ctx.fillText('AVAILABLE', right - lblw, y + h * 0.065);
+      ctx.restore();
+      var bx = right - lblw - h * 0.26 - bs;
+      var bss = bs * easeBack(bp);
+      ctx.save();
+      ctx.translate(bx, y);
+      glow(ctx, 0, 0, bss * 3.4, hue, 0.55 * bp);
+      ctx.beginPath(); ctx.arc(0, 0, bss, 0, TAU);
+      ctx.fillStyle = mix('#0b1b12', hue, 0.20); ctx.fill();
+      ctx.lineWidth = bss * 0.16; ctx.strokeStyle = hue; ctx.stroke();
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.lineWidth = bss * 0.26; ctx.strokeStyle = '#ddffee';
+      ctx.beginPath();
+      ctx.moveTo(-bss * 0.40, bss * 0.02); ctx.lineTo(-bss * 0.10, bss * 0.32); ctx.lineTo(bss * 0.44, -bss * 0.34);
+      ctx.stroke();
+      ctx.restore();
+    }
+    var limit = right - lblw - h * 0.26 - bs * 2 - h * 0.30;
+    var fs = h * 0.30;
+    setFont(ctx, '700', fs);
+    var tx = x - w / 2 + h * 0.45;
+    if (tx + ctx.measureText(text).width > limit) {
+      fs *= (limit - tx) / ctx.measureText(text).width;
+      setFont(ctx, '700', fs);
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = hexa(hue, 0.5); ctx.shadowBlur = fs * 0.6;
+    ctx.fillText(text, tx, y + fs * 0.35);
+    ctx.shadowBlur = 0;
+  }
+  function priceChip(ctx, x, y, w, h, price, hue, glowAmt) {
+    chipShell(ctx, x, y, w, h, hue, glowAmt);
+    setFont(ctx, '700', h * 0.185);
+    var pw2 = ctx.measureText('PREMIUM').width;
+    ctx.fillStyle = hexa(hue, 0.95);
+    ctx.fillText('PREMIUM', x + w / 2 - h * 1.30 - pw2, y + h * 0.065);
+    var fs = h * 0.38;
+    setFont(ctx, '700', fs);
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = hexa(hue, 0.65); ctx.shadowBlur = fs * 0.7;
+    ctx.fillText(price, x - w / 2 + h * 0.45, y + fs * 0.35);
+    ctx.shadowBlur = 0;
+  }
+
   /* --- 2. SHOCKWAVE + WORDMARK-SNAP · 5.0–9.0 ---------------------------- */
   function sceneBrand(ctx, t, dur) {
     var out = 0;
@@ -830,11 +1098,13 @@
     aurora(ctx, t, snapped ? C.ember : C.blue, snapped ? C.orange : C.violet, 0.55);
 
     // a ring is always travelling outward
-    shockwave(ctx, cx, cy, inv(t, 0.00, 0.95), mix(C.mint, C.blue, 0.55), 0.95, W * 1.25);
+    shockwave(ctx, cx, cy, inv(t, 0.00, 0.95), mix(C.mint, C.blue, 0.55), 0.70, W * 1.95);
     shockwave(ctx, cx, cy, inv(t, 0.34, 1.30), C.violet, 0.40, W * 1.45);
-    shockwave(ctx, cx, cy, inv(t, 1.05, 2.05), C.orange, 0.30, W * 1.30);
-    shockwave(ctx, cx, cy, inv(t, 2.10, 3.10), C.gold, 0.20, W * 1.30);
-    shockwave(ctx, cx, cy, inv(t, 3.00, 4.00), C.ember, 0.16, W * 1.30);
+    shockwave(ctx, cx, cy, inv(t, 1.05, 2.05), C.orange, 0.22, W * 1.85);
+    shockwave(ctx, cx, cy, inv(t, 2.10, 3.10), C.gold, 0.14, W * 1.85);
+    shockwave(ctx, cx, cy, inv(t, 3.00, 4.00), C.ember, 0.11, W * 1.85);
+    shockwave(ctx, cx, cy, inv(t, 4.10, 5.10), C.gold, 0.10, W * 1.85);
+    shockwave(ctx, cx, cy, inv(t, 5.10, 6.05), C.orange, 0.09, W * 1.85);
 
     var sw = swell(inv(t, 0.9, dur * 0.92));
 
@@ -863,17 +1133,31 @@
         swoosh: draw, glowMul: 0.7 + 0.6 * sw, phase: (t - SNAP) / 1.9
       });
 
-      var sa = smooth(inv(t, 1.50, 1.95));
-      if (sa > 0.01) {
+      // two labels, the second replacing the first on a vertical swap
+      var l1 = smooth(inv(t, 1.50, 1.92)) * (1 - smooth(inv(t, 3.00, 3.30)));
+      if (l1 > 0.01) {
         ctx.save();
-        wipeLabel(ctx, 'AI NAMES  ·  LIVE AVAILABILITY', cy + H * 0.112, W * 0.028, '#ffffff',
-          W * 0.0085 * (1 + 0.05 * osc(t, 0.25)), inv(t, 1.50, 2.15), sa * 0.58);
+        ctx.globalAlpha = l1;
+        ctx.translate(0, -smooth(inv(t, 3.00, 3.30)) * H * 0.035);
+        wipeLabel(ctx, 'AI DOMAIN NAME GENERATOR', cy + H * 0.112, W * 0.029, '#ffffff',
+          W * 0.0090 * (1 + 0.05 * osc(t, 0.25)), inv(t, 1.50, 2.20), 0.60);
         ctx.restore();
       }
+      var l2 = smooth(inv(t, 3.22, 3.56));
+      if (l2 > 0.01) {
+        ctx.save();
+        ctx.globalAlpha = l2;
+        ctx.translate(0, (1 - l2) * H * 0.035);
+        wipeLabel(ctx, 'ONLY NAMES YOU CAN ACTUALLY REGISTER', cy + H * 0.112, W * 0.026,
+          mix(C.gold, '#ffffff', 0.45), W * 0.0070, inv(t, 3.22, 4.20), 0.72);
+        ctx.restore();
+      }
+      streak(ctx, cx, cy + s1 * 0.62, W * 0.80, C.gold, 0.055 + 0.055 * sw);
     }
 
     if (flash > 0.01 && snapped) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      streak(ctx, cx, cy, W * 1.5, '#fff0d0', 0.75 * flash);
       ctx.fillStyle = hexa('#ffffff', 0.42 * flash * flash);
       ctx.fillRect(0, 0, W, H);
       ctx.restore();
@@ -903,8 +1187,12 @@
     var ca = smooth(inv(t, 0.15, 0.55)) * (1 - smooth(inv(t, dur - 0.50, dur - 0.12)));
     if (ca > 0.01) {
       ctx.save();
-      wipeLabel(ctx, 'DESCRIBE  YOUR  IDEA', H * 0.335, W * 0.030, '#ffffff',
+      wipeLabel(ctx, 'DESCRIBE  YOUR  IDEA', H * 0.315, W * 0.030, '#ffffff',
         W * 0.010, inv(t, 0.15, 0.85), ca * 0.52);
+      ctx.restore();
+      ctx.save();
+      wipeLabel(ctx, 'AI DOMAIN NAME GENERATOR', H * 0.815, W * 0.026, mix(C.mint, '#ffffff', 0.4),
+        W * 0.0080, inv(t, 0.60, 1.60), ca * 0.50);
       ctx.restore();
     }
 
@@ -1055,7 +1343,7 @@
       ctx.shadowBlur = 0;
       ctx.restore();
       ctx.save();
-      wipeLabel(ctx, 'REGISTRY  DIRECT  ·  NO  CACHE', H * 0.796, W * 0.028, '#ffffff',
+      wipeLabel(ctx, '240+ EXTENSIONS · REGISTRY DIRECT · NO CACHE', H * 0.796, W * 0.0235, '#ffffff',
         W * 0.0095, inv(t, dur * 0.34, dur * 0.72), fade * ca * 0.50);
       ctx.restore();
     }
@@ -1378,6 +1666,266 @@
     ctx.restore();
   }
 
+  /* --- 8. SOCIAL HANDLES · 32.0–36.0 -------------------------------------
+     Their feature nobody else promotes: the same name checked as a handle on
+     five platforms at once. Written as labels, not logos. */
+  var PLATFORMS = ['YT', 'IG', 'TT', 'FB', 'PIN'];
+  function sceneSocial(ctx, t, dur) {
+    var cx = W / 2, rowY = H * 0.605;
+    var size = W * 0.148, gap = W * 0.038;
+    var span = PLATFORMS.length * size + (PLATFORMS.length - 1) * gap;
+    var x0 = cx - span / 2 + size / 2;
+    var sw = swell(inv(t, 0, dur * 0.86));
+    var hues = [C.magenta, C.pink, C.cyan, C.blue, C.ember];
+
+    ctx.save();
+    ambient(ctx, t, C.cyan, 0.55);
+    aurora(ctx, t, C.magenta, C.cyan, 0.45);
+    columns(ctx, t, C.cyan, 0.45);
+
+    headline(ctx, t, 'One handle. Everywhere.', H * 0.225, inv(t, 0.10, 1.20),
+      { hot: C.cyan, hotWords: [2], sweepFrom: 1.20 });
+
+    // the handle itself, carried down from the name
+    var ha = easeBack(inv(t, 0.18, 0.78));
+    if (ha > 0.002) {
+      var hw = W * 0.56, hh = H * 0.072;
+      var hy = H * 0.395 + (1 - clamp(ha)) * H * 0.05 + Math.sin(t * 1.2) * H * 0.0035;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, ha * 1.5);
+      chipShell(ctx, cx, hy, hw, hh, C.mint, 0.55 + 0.45 * sw);
+      setFont(ctx, '700', hh * 0.44);
+      var lbl = '@northstar';
+      var lw = ctx.measureText(lbl).width;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = hexa(C.mint, 0.55); ctx.shadowBlur = hh * 0.6;
+      ctx.fillText(lbl, cx - lw / 2, hy + hh * 0.16);
+      sheen(ctx, cx - hw / 2, hy - hh / 2, hw, hh, hh / 2, t, 1.7, '#ffffff', 0.26);
+      ctx.restore();
+    }
+
+    // a light line drawing left to right through the row
+    var dp = smooth(inv(t, 0.62, 1.60));
+    if (dp > 0.002) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      var lx0 = x0 - size * 0.42, lx1 = x0 + span - size * 0.58;
+      var lx = lerp(lx0, lx1, dp);
+      var lg = ctx.createLinearGradient(lx0, 0, lx1, 0);
+      lg.addColorStop(0, hexa(C.cyan, 0.55));
+      lg.addColorStop(1, hexa(C.cyan, 0.55));
+      ctx.strokeStyle = lg; ctx.lineWidth = Math.max(2, H * 0.0022);
+      ctx.shadowColor = hexa(C.cyan, 0.9); ctx.shadowBlur = H * 0.02;
+      ctx.beginPath(); ctx.moveTo(lx0, rowY); ctx.lineTo(lx, rowY); ctx.stroke();
+      if (dp < 0.99) glow(ctx, lx, rowY, W * 0.05, '#ffffff', 0.75);
+      // a pulse keeps running the finished line
+      if (dp > 0.99) {
+        var pq = ((t - 1.60) % 1.15) / 1.15;
+        var px2 = lerp(lx0, lx1, pq);
+        var pg = ctx.createLinearGradient(px2 - W * 0.13, 0, px2 + W * 0.13, 0);
+        pg.addColorStop(0, hexa(C.cyan, 0));
+        pg.addColorStop(0.5, hexa('#ffffff', 0.85 * Math.sin(pq * Math.PI)));
+        pg.addColorStop(1, hexa(C.cyan, 0));
+        ctx.strokeStyle = pg; ctx.lineWidth = Math.max(3, H * 0.0035);
+        ctx.beginPath(); ctx.moveTo(lx0, rowY); ctx.lineTo(lx1, rowY); ctx.stroke();
+        glow(ctx, px2, rowY, W * 0.035, '#ffffff', 0.45 * Math.sin(pq * Math.PI));
+      }
+      ctx.restore();
+    }
+
+    for (var i = 0; i < PLATFORMS.length; i++) {
+      var ap = easeBack(inv(t, 0.10 + i * 0.085, 0.72 + i * 0.085));
+      if (ap <= 0.002) continue;
+      var bob = Math.sin(t * 1.35 + i * 1.15) * H * 0.011;
+      slab(ctx, {
+        x: x0 + i * (size + gap),
+        y: rowY + (1 - clamp(ap)) * H * 0.09 + bob,
+        size: size * lerp(0.82, 1, clamp(ap)),
+        rot: 0.03 * Math.sin(t * 0.85 + i),
+        alpha: Math.min(1, ap * 1.6),
+        c1: '#ffffff', c2: mix(hues[i], '#ffffff', 0.15 + 0.15 * (0.5 + 0.5 * Math.sin(t * 1.4 + i))),
+        halo: hues[i], symbol: tldSym(PLATFORMS[i]),
+        badge: smooth(inv(t, 1.05 + i * 0.12, 1.34 + i * 0.12))
+      });
+    }
+
+    var la = smooth(inv(t, 1.70, 2.10));
+    if (la > 0.01) {
+      ctx.save();
+      wipeLabel(ctx, 'YOUTUBE · INSTAGRAM · TIKTOK · FACEBOOK · PINTEREST', H * 0.775,
+        W * 0.022, '#ffffff', W * 0.0040, inv(t, 1.70, 2.70), la * 0.52);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  /* --- 9. PRIVACY · 36.0–40.0 --------------------------------------------
+     No front-running: searches stay in local storage. A browser pane with the
+     bookmarks inside, a lock that closes, and broker darts that never land. */
+  function scenePrivacy(ctx, t, dur) {
+    var cx = W / 2, cy = H * 0.545;
+    var pw = W * 0.66, ph = H * 0.235, r = W * 0.055;
+    var sw = swell(inv(t, 0, dur * 0.86));
+    var inP = easeOut4(inv(t, 0.00, 0.62));
+    var LOCK = 1.05;
+    var lock = smooth(inv(t, 0.72, LOCK));
+    var snapL = 1 - smooth(inv(t, LOCK, LOCK + 0.24));
+
+    ctx.save();
+    ambient(ctx, t, C.mint, 0.55);
+    aurora(ctx, t, C.mint, C.green, 0.24);
+    columns(ctx, t, C.mint, 0.40);
+
+    headline(ctx, t, 'Never leaves your browser.', H * 0.225, inv(t, 0.10, 1.25),
+      { hot: C.mint, hotWords: [3], sweepFrom: 1.25, size: W * 0.082 });
+
+    // broker darts that dissolve on the boundary
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (var d = 0; d < 8; d++) {
+      var q = ((t * 0.86 + d * 0.127) % 1);
+      var ang = (d / 8) * TAU + 0.42 + Math.sin(d * 2.1) * 0.35;
+      var far = Math.max(W, H) * 0.62, near = pw * 0.62;
+      var rr2 = lerp(far, near, easeOut(q));
+      var dx = cx + Math.cos(ang) * rr2, dy = cy + Math.sin(ang) * rr2 * 0.85;
+      var hit = clamp((q - 0.72) / 0.28);
+      var a = (1 - hit) * 1.00 * clamp(q * 4);
+      if (a > 0.01) {
+        ctx.save();
+        ctx.translate(dx, dy); ctx.rotate(ang + Math.PI);
+        var dl = W * 0.070;
+        var dg = ctx.createLinearGradient(-dl, 0, dl * 0.3, 0);
+        dg.addColorStop(0, hexa(C.pink, 0)); dg.addColorStop(1, hexa(C.pink, a));
+        ctx.fillStyle = dg;
+        ctx.beginPath();
+        ctx.moveTo(dl * 0.3, 0); ctx.lineTo(-dl, -W * 0.008); ctx.lineTo(-dl, W * 0.008);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      if (hit > 0.02 && hit < 1) {
+        var hx = cx + Math.cos(ang) * near, hy2 = cy + Math.sin(ang) * near * 0.85;
+        glow(ctx, hx, hy2, W * 0.13 * hit, C.mint, 0.75 * (1 - hit));
+      }
+    }
+    ctx.restore();
+
+    // the pane
+    var py = cy + (1 - inP) * H * 0.06;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, inP * 1.6);
+    shapeBloom(ctx, function (k) {
+      rr(ctx, cx - pw * k / 2, py - ph * k / 2, pw * k, ph * k, r * k);
+    }, C.mint, 0.34 * sw, [[1.9, 0.16], [1.5, 0.22], [1.25, 0.26], [1.08, 0.28]]);
+    rr(ctx, cx - pw / 2, py - ph / 2, pw, ph, r);
+    var bg = ctx.createLinearGradient(cx - pw / 2, py - ph / 2, cx + pw * 0.2, py + ph / 2);
+    bg.addColorStop(0, '#141a18'); bg.addColorStop(0.5, '#080c0b'); bg.addColorStop(1, '#020403');
+    ctx.fillStyle = bg; ctx.fill();
+    rr(ctx, cx - pw / 2 + 2, py - ph / 2 + 2, pw - 4, ph - 4, r);
+    var eg = ctx.createLinearGradient(cx - pw / 2, py - ph / 2, cx + pw * 0.5, py + ph / 2);
+    eg.addColorStop(0, hexa(C.mint, 0.75));
+    eg.addColorStop(0.35, 'rgba(255,255,255,0.14)');
+    eg.addColorStop(1, hexa(C.green, 0.30));
+    ctx.lineWidth = Math.max(1.5, H * 0.0022); ctx.strokeStyle = eg; ctx.stroke();
+
+    // a scan sweeping down the pane
+    ctx.save();
+    rr(ctx, cx - pw / 2, py - ph / 2, pw, ph, r); ctx.clip();
+    ctx.globalCompositeOperation = 'lighter';
+    var sq2 = ((t * 0.55) % 1);
+    var sy2 = lerp(py - ph / 2, py + ph / 2, sq2);
+    var sgd = ctx.createLinearGradient(0, sy2 - H * 0.018, 0, sy2 + H * 0.018);
+    sgd.addColorStop(0, hexa(C.mint, 0));
+    sgd.addColorStop(0.5, hexa(C.mint, 0.22 * Math.sin(sq2 * Math.PI)));
+    sgd.addColorStop(1, hexa(C.mint, 0));
+    ctx.fillStyle = sgd;
+    ctx.fillRect(cx - pw / 2, sy2 - H * 0.018, pw, H * 0.036);
+    ctx.restore();
+
+    // browser chrome
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    for (var b = 0; b < 3; b++) {
+      ctx.beginPath();
+      ctx.arc(cx - pw / 2 + W * 0.055 + b * W * 0.032, py - ph / 2 + H * 0.030, W * 0.0085, 0, TAU);
+      ctx.fillStyle = ['#ff5f57', '#febc2e', '#28c840'][b]; ctx.fill();
+    }
+    ctx.restore();
+
+    // the bookmarks living inside it
+    for (var i = 0; i < 3; i++) {
+      var ca = smooth(inv(t, 0.42 + i * 0.13, 0.86 + i * 0.13));
+      if (ca <= 0.004) continue;
+      var chy = py - ph * 0.06 + i * H * 0.048 + Math.sin(t * 1.1 + i * 1.4) * H * 0.0025;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, inP * 1.6) * ca * 0.95;
+      var cw2 = pw * 0.72, ch2 = H * 0.038;
+      rr(ctx, cx - cw2 / 2, chy - ch2 / 2, cw2, ch2, ch2 / 2);
+      ctx.fillStyle = 'rgba(10,16,13,0.95)'; ctx.fill();
+      var hl = Math.pow(Math.max(0, Math.sin((t * 0.55 - i * 0.22) * Math.PI * 2)), 6);
+      ctx.lineWidth = 1.4 + hl * 1.6;
+      ctx.strokeStyle = hexa(C.mint, 0.35 + 0.45 * hl); ctx.stroke();
+      setFont(ctx, '700', ch2 * 0.46);
+      ctx.fillStyle = 'rgba(255,255,255,0.82)';
+      ctx.fillText(['northstar.com', 'lumen.io', 'kestrel.ai'][i],
+        cx - cw2 / 2 + W * 0.030, chy + ch2 * 0.17);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.lineWidth = W * 0.005; ctx.strokeStyle = C.mint;
+      var bx2 = cx + cw2 / 2 - W * 0.040;
+      ctx.beginPath();
+      ctx.moveTo(bx2 - W * 0.009, chy); ctx.lineTo(bx2 - W * 0.002, chy + W * 0.008);
+      ctx.lineTo(bx2 + W * 0.012, chy - W * 0.010);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // the lock, closing
+    var ly = py - ph / 2 - H * 0.052;
+    var ls = W * 0.052;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, inP * 1.6);
+    var shH = lerp(ls * 1.30, ls * 0.86, lock);
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineWidth = ls * 0.20;
+    ctx.strokeStyle = mix('#bfffe0', C.mint, 0.5);
+    ctx.shadowColor = hexa(C.mint, 0.9); ctx.shadowBlur = ls * (0.6 + 1.6 * snapL);
+    ctx.beginPath();
+    ctx.arc(cx, ly - shH * 0.30, ls * 0.42, Math.PI, 0);
+    ctx.moveTo(cx - ls * 0.42, ly - shH * 0.30); ctx.lineTo(cx - ls * 0.42, ly + ls * 0.10);
+    ctx.moveTo(cx + ls * 0.42, ly - shH * 0.30); ctx.lineTo(cx + ls * 0.42, ly + ls * 0.10);
+    ctx.stroke();
+    ctx.restore();
+    rr(ctx, cx - ls * 0.72, ly + ls * 0.04, ls * 1.44, ls * 1.10, ls * 0.26);
+    var lg2 = ctx.createLinearGradient(cx - ls, ly, cx + ls, ly + ls);
+    lg2.addColorStop(0, '#d8ffe8'); lg2.addColorStop(1, C.green);
+    ctx.fillStyle = lg2;
+    ctx.shadowColor = hexa(C.mint, 0.85); ctx.shadowBlur = ls * (0.5 + 1.4 * snapL);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(cx, ly + ls * 0.56, ls * 0.14, 0, TAU);
+    ctx.fillStyle = '#0a1a10'; ctx.fill();
+    ctx.restore();
+    if (snapL > 0.02) {
+      streak(ctx, cx, ly + ls * 0.5, W * 0.5 * snapL, C.mint, 0.55 * snapL);
+    }
+    // the lock keeps pulsing once it is closed
+    shockwave(ctx, cx, ly + ls * 0.5, inv(t, LOCK, LOCK + 0.70), C.mint, 0.26, W * 1.7);
+    shockwave(ctx, cx, ly + ls * 0.5, inv(t, LOCK + 1.05, LOCK + 1.85), C.mint, 0.15, W * 1.7);
+    shockwave(ctx, cx, ly + ls * 0.5, inv(t, LOCK + 2.05, LOCK + 2.85), C.green, 0.12, W * 1.7);
+    glowE(ctx, cx, ly + ls * 0.4, W * 0.22 * (0.9 + 0.16 * osc(t, 0.55)), H * 0.05, C.mint,
+      0.16 + 0.10 * sw);
+
+    var la = smooth(inv(t, 1.55, 1.95));
+    if (la > 0.01) {
+      ctx.save();
+      wipeLabel(ctx, 'NO FRONT-RUNNING · NO CACHING · LOCAL ONLY', H * 0.815,
+        W * 0.024, '#ffffff', W * 0.0055, inv(t, 1.55, 2.55), la * 0.55);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   /* ==========================================================================
      6. TIMELINE + CAMERA
      ========================================================================== */
@@ -1390,12 +1938,14 @@
   var TIMELINE = [
     { name: 'ask', end: 4.0, fn: sceneAsk, cam: cam(1.00, 1.10, 0, 0, 0, -0.010) },
     { name: 'taken', end: 8.0, fn: sceneTaken, cam: cam(1.08, 1.00, 0, 0, -0.006, 0.006) },
-    { name: 'brand', end: 12.0, fn: sceneBrand, cam: cam(1.14, 1.00, 0, 0, 0, 0) },
-    { name: 'prompt', end: 18.0, fn: scenePrompt, cam: cam(1.00, 1.06, 0.010, -0.010, 0, 0) },
-    { name: 'tlds', end: 22.0, fn: sceneTLDs, cam: cam(1.16, 1.00, 0, 0, 0, 0) },
-    { name: 'score', end: 26.0, fn: sceneScore, cam: cam(1.00, 1.07, 0, 0, 0.008, -0.004) },
-    { name: 'proof', end: 30.0, fn: sceneProof, cam: cam(1.10, 1.00, -0.012, 0.008, 0, 0) },
-    { name: 'close', end: 36.0, fn: sceneClose, cam: cam(1.00, 1.09, 0, 0, 0, -0.006) }
+    { name: 'trap', end: 12.0, fn: sceneTrap, cam: cam(1.00, 1.09, 0, 0, 0, -0.008) },
+    { name: 'reveal', end: 18.0, fn: sceneBrand, cam: cam(1.14, 1.00, 0, 0, 0, 0) },
+    { name: 'generate', end: 24.0, fn: scenePrompt, cam: cam(1.00, 1.06, 0.010, -0.010, 0, 0) },
+    { name: 'tlds', end: 28.0, fn: sceneTLDs, cam: cam(1.16, 1.00, 0, 0, 0, 0) },
+    { name: 'score', end: 32.0, fn: sceneScore, cam: cam(1.00, 1.07, 0, 0, 0.008, -0.004) },
+    { name: 'social', end: 36.0, fn: sceneSocial, cam: cam(1.09, 1.00, 0, 0, 0.004, 0) },
+    { name: 'privacy', end: 40.0, fn: scenePrivacy, cam: cam(1.00, 1.07, 0, 0, 0, -0.005) },
+    { name: 'close', end: 46.0, fn: sceneClose, cam: cam(1.00, 1.09, 0, 0, 0, -0.006) }
   ];
   var DUR = TIMELINE[TIMELINE.length - 1].end;
 
@@ -1426,6 +1976,8 @@
       }
       start = TIMELINE[i].end;
     }
+    vignette(ctx, 0.42);
+    grain(ctx, t, 0.055);
     watermark(ctx);
     ctx.restore();
   }
@@ -1442,7 +1994,9 @@
       centred: centred, wipeLabel: wipeLabel, typeOut: typeOut, caret: caret,
       slab: slab, lockup: lockup, shockwave: shockwave, ambient: ambient,
       aurora: aurora, sheen: sheen, orbit: orbit,
-      chip: chip, feed: feed, pathCheck: pathCheck, checkSym: checkSym,
+      chip: chip, feed: feed, riseWords: riseWords, headline: headline,
+      streak: streak, vignette: vignette, grain: grain, columns: columns,
+      pathCheck: pathCheck, checkSym: checkSym,
       tldSym: tldSym, sparkSym: sparkSym
     }
   };

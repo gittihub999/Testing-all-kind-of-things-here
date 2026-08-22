@@ -7,7 +7,7 @@ seconds against that grid.
 import numpy as np, wave, os, sys
 
 SR = 48000
-DUR = 36.0
+DUR = 46.0
 N = int(SR * DUR)
 T = np.arange(N) / SR
 OUT = os.path.dirname(os.path.abspath(__file__))
@@ -15,7 +15,7 @@ OUT = os.path.dirname(os.path.abspath(__file__))
 BPM = 120.0
 BEAT = 60.0 / BPM          # 0.5s
 BAR = BEAT * 4             # 2.0s
-CUTS = [0.0, 4.0, 8.0, 12.0, 18.0, 22.0, 26.0, 30.0, 36.0]
+CUTS = [0.0, 4.0, 8.0, 12.0, 18.0, 24.0, 28.0, 32.0, 36.0, 40.0, 46.0]
 
 rs = np.random.RandomState(20260822)
 
@@ -162,12 +162,12 @@ for b in range(NBARS):
         place(bass, sig * e, t0)
 music += bass * 0.50
 
-# --- pad: detuned saws, slow filter opening across the film ----------------
+# --- pad: detuned saws, chords overlapping so the bed never re-triggers ---
 pad = np.zeros(N)
 for b in range(NBARS):
     notes = PROG[b % 4][1]
     t0 = b * BAR
-    d = BAR * 1.02
+    d = BAR * 1.30                       # long overlap: chords crossfade
     n = int(d * SR)
     if int(t0 * SR) >= N: break
     x = np.arange(n) / SR
@@ -177,20 +177,19 @@ for b in range(NBARS):
         for det in (-0.14, 0.0, 0.15):
             sig += saw(base * (1 + det / 100.0), n, phase=rs.rand())
     sig /= (len(notes) * 3)
-    e = np.clip(x / 0.28, 0, 1) * np.clip((d - x) / 0.5, 0, 1)
+    e = np.clip(x / 0.55, 0, 1) * np.clip((d - x) / (BAR * 0.75), 0, 1)
     place(pad, sig * e, t0)
-pad = biquad_lp(pad, 900.0)
-# the pad opens up as the film builds
-open_env = 0.35 + 0.65 * np.clip((T - 4.0) / 16.0, 0, 1)
-music += pad * 0.30 * open_env
+pad = biquad_lp(pad, 950.0)
+open_env = 0.45 + 0.55 * np.clip((T - 2.0) / 18.0, 0, 1)
+music += pad * 0.34 * open_env
 
-# --- arpeggio: 16ths, enters at the brand beat -----------------------------
+# --- arpeggio: 16ths, enters with the brand reveal and never stops --------
 arp = np.zeros(N)
 step = BEAT / 4
 nsteps = int(DUR / step)
 for i in range(nsteps):
     t0 = i * step
-    if t0 < 8.0 - 0.25:
+    if t0 < 12.0 - 0.25:
         continue
     b = int(t0 // BAR)
     notes = PROG[b % 4][1]
@@ -201,13 +200,32 @@ for i in range(nsteps):
     x = np.arange(n) / SR
     sig = sq(f, n, duty=0.32) * 0.5 + saw(f, n) * 0.5
     e = np.clip(x / 0.002, 0, 1) * np.exp(-x * 22)
-    gain = 0.55 if t0 < 12.0 else (0.85 if t0 < 22.0 else 1.0)
+    gain = np.clip((t0 - 11.75) / 1.5, 0, 1)          # fades in, stays in
     place(arp, sig * e * gain, t0)
 arp = biquad_lp(arp, 2600.0)
 arp = arp * 0.8 + fftconv(arp, IR) * 0.22
-music += arp * 0.16
+music += arp * 0.15
 
-# --- drums -----------------------------------------------------------------
+# --- lead: a sparse motif that lifts the last third -----------------------
+lead = np.zeros(N)
+MOTIF = [('E5', 0.0, 1.2), ('C5', 1.5, 0.9), ('D4', 2.5, 1.4),
+         ('G4', 4.0, 1.2), ('E5', 5.5, 0.9), ('C5', 6.5, 1.4)]
+for cycle, base_t in enumerate([30.0, 38.0]):
+    for (nm, off, dur_n) in MOTIF:
+        t0 = base_t + off
+        if t0 >= DUR - 0.4: continue
+        n = int(min(dur_n, DUR - t0) * SR)
+        x = np.arange(n) / SR
+        f = NOTE[nm]
+        sig = (np.sin(2*np.pi*f*x) * 0.6 + saw(f, n) * 0.25 +
+               np.sin(2*np.pi*f*2*x) * 0.12)
+        e = np.clip(x / 0.10, 0, 1) * np.exp(-x * 1.9)
+        place(lead, sig * e, t0)
+lead = biquad_lp(lead, 3200.0)
+lead = lead * 0.6 + fftconv(lead, IR) * 0.5
+music += lead * 0.042
+
+# --- drums: they arrive in stages and never drop out ---------------------
 drums = np.zeros(N)
 def kick(t0, gain=1.0):
     d = 0.34; n = int(d * SR); x = np.arange(n) / SR
@@ -221,79 +239,49 @@ def snare(t0, gain=1.0):
     d = 0.30; n = int(d * SR); x = np.arange(n) / SR
     body = np.sin(2 * np.pi * 190 * x) * np.exp(-x * 26) * 0.35
     nz = biquad_hp(noise(n), 1400.0) * np.exp(-x * 17)
-    sig = (body + nz) * gain
-    place(drums, sig * 0.9, t0)
+    place(drums, (body + nz) * gain * 0.9, t0)
 
 def hat(t0, gain=1.0, dcy=70.0):
     d = 0.10; n = int(d * SR); x = np.arange(n) / SR
-    nz = biquad_hp(noise(n), 7200.0) * np.exp(-x * dcy)
-    place(drums, nz * gain, t0)
+    place(drums, biquad_hp(noise(n), 7200.0) * np.exp(-x * dcy) * gain, t0)
 
 for b in range(NBARS):
     t0 = b * BAR
     if t0 >= DUR: break
-    full = t0 >= 8.0
+    thin = t0 >= DUR - BAR * 1.2                       # ease out at the very end
     if t0 >= 2.0:
-        kick(t0, 1.0)
-        kick(t0 + BEAT * 2, 0.95)
-    if t0 >= 4.0:
-        snare(t0 + BEAT * 3, 0.70)
-    if full:
+        kick(t0, 0.55 if t0 < 8.0 else (0.8 if thin else 1.0))
+        kick(t0 + BEAT * 2, 0.5 if t0 < 8.0 else (0.75 if thin else 0.95))
+    if t0 >= 6.0:
+        snare(t0 + BEAT * 3, 0.55 if t0 < 12.0 else (0.6 if thin else 0.80))
+    if t0 >= 12.0 and not thin:
         kick(t0 + BEAT * 2 + BEAT * 0.75, 0.45)
-        snare(t0 + BEAT, 0.75)
-        snare(t0 + BEAT * 3, 0.80)
-    if t0 >= 12.0:
+        snare(t0 + BEAT, 0.72)
+    if t0 >= 16.0:
         for k in range(8):
-            hat(t0 + k * BEAT / 2, 0.20 if k % 2 else 0.32)
-    if t0 >= 18.0:
+            hat(t0 + k * BEAT / 2, (0.20 if k % 2 else 0.32) * (0.5 if thin else 1.0))
+    if t0 >= 24.0 and not thin:
         for k in range(16):
             if k % 2:
                 hat(t0 + k * BEAT / 4, 0.12, 110.0)
-music += drums * 0.42
+music += drums * 0.40
 
-# sidechain the sustained parts to the kick so the bed breathes
+# gentle sidechain — enough to breathe, not enough to pump
 duck = np.ones(N)
 for b in range(NBARS):
     for k in (0, 2):
         t0 = b * BAR + k * BEAT
         if t0 >= DUR or t0 < 2.0: continue
-        d = 0.34; i0 = int(t0 * SR); n = min(int(d * SR), N - i0)
+        d = 0.30; i0 = int(t0 * SR); n = min(int(d * SR), N - i0)
         if n <= 0: continue
         x = np.arange(n) / SR
-        duck[i0:i0 + n] = np.minimum(duck[i0:i0 + n], 0.42 + 0.58 * np.clip(x / d, 0, 1) ** 0.6)
-music = music * (0.55 + 0.45 * duck)
+        duck[i0:i0 + n] = np.minimum(duck[i0:i0 + n], 0.62 + 0.38 * np.clip(x / d, 0, 1) ** 0.6)
+music = music * (0.72 + 0.28 * duck)
 
-# --- transitions: risers into each cut, and a downlifter out of it ---------
-def riser(t0, dur, f0=180.0, f1=3200.0, gain=0.5, kind='noise'):
-    n = int(dur * SR); x = np.arange(n) / SR
-    p = x / dur
-    if kind == 'noise':
-        nz = noise(n)
-        cutoff = f0 * (f1 / f0) ** p
-        sig = onepole_lp(nz, cutoff)
-        sig = sig - onepole_lp(sig, cutoff * 0.35)
-    else:
-        f = f0 * (f1 / f0) ** p
-        sig = np.sin(2 * np.pi * np.cumsum(f) / SR)
-    e = (p ** 2.2) * (1 - np.clip((x - dur + 0.03) / 0.03, 0, 1))
-    place(music, sig * e * gain, t0)
-
-def downlift(t0, dur=1.1, gain=0.35):
-    n = int(dur * SR); x = np.arange(n) / SR
-    p = x / dur
-    f = 2400 * (0.06) ** p
-    sig = np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.6 + onepole_lp(noise(n), 900) * 0.5
-    e = np.exp(-x * 3.2)
-    place(music, sig * e * gain, t0)
-
-for c in CUTS[1:-1]:
-    riser(c - 1.1, 1.1, 200, 3400, 0.30)
-    downlift(c, 1.0, 0.26)
-riser(7.3, 0.70, 220, 4200, 0.42)
-
-# --- ending: let the bed ring out ------------------------------------------
-tail_mask = 1 - np.clip((T - 34.4) / 1.6, 0, 1) ** 1.4
-music *= tail_mask
+# --- the only shaping is at the very top and the very end ----------------
+intro = np.clip(T / 0.35, 0, 1) ** 1.2
+tail_mask = 1 - np.clip((T - 44.3) / 1.7, 0, 1) ** 1.3
+music *= intro * tail_mask
 music = music * 0.86 + fftconv(music, IR) * 0.16
 
 # ---------------------------------------------------------------- SFX
@@ -359,21 +347,15 @@ def sweepup(t0, dur, gain=0.35, f0=220, f1=2400):
 # 1 · question one — the feed builds and scans
 impact(0.00, 0.80, 46, 1.6)
 shimmer(0.05, 1.6, 0.16)
-q1 = 'Naming your startup?'
-for i in range(len(q1)):
-    if q1[i] != ' ':
-        tick(0.30 + i * (1.85 - 0.30) / (len(q1) + 0.6), 0.080, 2200 + (i % 5) * 260)
+whoosh(0.18, 0.55, 0.24, True, 400, 2600)          # the headline rising
 for tt in (1.15, 2.25, 3.25):
     tick(tt, 0.22, 1500)
     blip(tt, 0.10, 820, True)
-whoosh(3.40, 0.62, 0.40, True)
+whoosh(3.42, 0.60, 0.40, True)
 
 # 2 · question two — every line gets stamped
 impact(4.00, 0.90, 44, 1.5)
-q2 = 'Every .com already gone?'
-for i in range(len(q2)):
-    if q2[i] != ' ':
-        tick(4.18 + i * (5.80 - 4.18) / (len(q2) + 0.6), 0.080, 2000 + (i % 5) * 240)
+whoosh(4.10, 0.50, 0.22, True, 400, 2400)
 def stamp(t0, gain=0.42):
     d = 0.34; n = int(d * SR); x = np.arange(n) / SR
     thud = np.sin(2 * np.pi * (150 * (1 + 1.6 * np.exp(-x * 40))) * x) * np.exp(-x * 19)
@@ -383,25 +365,36 @@ def stamp(t0, gain=0.42):
 for tt in (4.62, 5.95, 7.28):
     stamp(tt, 0.42)
     blip(tt + 0.01, 0.16, 620, False)
-for k in range(7):                      # the feed runs away into the reveal
+for k in range(7):
     stamp(7.42 + k * 0.075, 0.20 + k * 0.03)
-riser(7.30, 0.66, 240, 4400, 0.34) if False else None
 whoosh(7.30, 0.68, 0.55, True, 260, 5200)
 
-# 3 · the reveal
-impact(8.00, 1.05, 42, 1.7)
-snap(8.98, 0.85)
-shimmer(9.00, 1.8, 0.28)
-blip(9.02, 0.22, 900, True)
-for k, tt in enumerate([9.20, 9.55, 9.95]):
-    blip(tt, 0.10, 1400 + k * 300, True)
+# 3 · the premium trap
+impact(8.00, 0.85, 46, 1.4)
+whoosh(8.12, 0.48, 0.24, True, 420, 2500)
+stamp(8.42, 0.30)                                   # the chip lands
+blip(8.98, 0.26, 1500, True)                        # AVAILABLE
+whoosh(9.36, 0.40, 0.45, True, 700, 5200)           # the flip
+tick(9.58, 0.34, 3200)
+impact(9.82, 0.65, 60, 1.2)                         # the stamp
+blip(9.84, 0.30, 520, False)
+stamp(10.20, 0.30); stamp(10.56, 0.28)
 
-# 4 · prompt — typing, swaps, results landing
-whoosh(12.00, 0.55, 0.36, True)
+# 4 · the reveal
+impact(12.00, 1.05, 42, 1.8)
+snap(12.98, 0.90)
+shimmer(13.00, 2.0, 0.30)
+blip(13.02, 0.22, 900, True)
+for k, tt in enumerate([13.22, 13.58, 13.98]):
+    blip(tt, 0.10, 1400 + k * 300, True)
+whoosh(15.16, 0.42, 0.20, True, 500, 2800)          # the label swap
+
+# 5 · the generator — typing, swaps, results landing
+whoosh(18.00, 0.55, 0.36, True)
 lines = ['fintech for freelancers', 'an AI photo editor', 'tool for indie devs']
 each = 6.0 / 3
 for li, ln in enumerate(lines):
-    t0 = 12.0 + li * each
+    t0 = 18.0 + li * each
     ty0, ty1 = t0 + 0.07 * each, t0 + 0.50 * each
     for i in range(len(ln)):
         if ln[i] != ' ':
@@ -411,39 +404,51 @@ for li, ln in enumerate(lines):
     if li < 2:
         whoosh(t0 + each * 0.86, 0.34, 0.22, False, 500, 2600)
 
-# 5 · TLDs — the formation opens, then eight availability ticks
-impact(18.00, 0.8, 50, 1.3)
-whoosh(17.94, 0.6, 0.34, True)
-sweepup(18.05, 0.75, 0.20, 300, 1500)
+# 6 · every extension
+impact(24.00, 0.8, 50, 1.3)
+whoosh(23.94, 0.6, 0.34, True)
+sweepup(24.05, 0.75, 0.20, 300, 1500)
 for j in range(8):
-    blip(19.15 + j * 0.13, 0.22, 1500 + j * 90, True)
+    blip(25.15 + j * 0.13, 0.22, 1500 + j * 90, True)
 
-# 6 · score — slam, gauge sweep, ping, two pulses
-impact(22.00, 1.05, 42, 1.7)
-sweepup(22.06, 0.98, 0.30, 260, 2600)
-blip(23.05, 0.42, 1760, True)
-shimmer(23.05, 1.2, 0.18)
-blip(23.92, 0.16, 1320, True)
-blip(24.92, 0.14, 1180, True)
+# 7 · the score
+impact(28.00, 1.05, 42, 1.7)
+sweepup(28.06, 0.98, 0.30, 260, 2600)
+blip(29.05, 0.42, 1760, True)
+shimmer(29.05, 1.2, 0.18)
+blip(29.92, 0.16, 1320, True)
+blip(30.92, 0.14, 1180, True)
 
-# 7 · proof — the card arrives and whips out
-whoosh(25.90, 0.70, 0.55, True, 240, 3000)
-impact(26.36, 0.75, 58, 1.2)
-shimmer(26.40, 1.0, 0.12)
-whoosh(29.62, 0.42, 0.50, True, 700, 5200)
+# 8 · the handle, everywhere
+impact(32.00, 0.75, 48, 1.3)
+whoosh(32.10, 0.50, 0.26, True, 420, 2600)
+for i in range(5):
+    stamp(32.14 + i * 0.085, 0.22)
+sweepup(32.62, 0.95, 0.18, 400, 2000)               # the line drawing through
+for i in range(5):
+    blip(33.08 + i * 0.12, 0.20, 1450 + i * 110, True)
 
-# 8 · close
-whoosh(30.00, 0.6, 0.34, True)
-shimmer(30.05, 1.6, 0.16)
-blip(31.00, 0.24, 980, True)           # .com -> check morph
-sweepup(31.55, 0.52, 0.22, 320, 1700)  # container dissolving
-snap(32.60, 0.95)                      # the lockup lands
-impact(32.60, 0.70, 48, 2.0)
-shimmer(32.62, 2.6, 0.34)
-blip(34.08, 0.30, 1240, True)          # the button
-shimmer(34.10, 1.8, 0.16)
+# 9 · privacy
+whoosh(36.00, 0.55, 0.32, True)
+impact(36.18, 0.55, 54, 1.1)
+snap(37.05, 0.55)                                   # the lock closing
+shimmer(37.06, 1.4, 0.20)
+for k in range(6):
+    tick(36.75 + k * 0.52, 0.13, 1900 + (k % 3) * 400)
+    blip(36.76 + k * 0.52, 0.07, 700, False)
 
-sfx *= 1 - np.clip((T - 35.2) / 0.8, 0, 1)
+# 10 · close
+whoosh(40.00, 0.6, 0.34, True)
+shimmer(40.05, 1.6, 0.16)
+blip(41.00, 0.24, 980, True)                        # .com -> check morph
+sweepup(41.55, 0.52, 0.22, 320, 1700)               # container dissolving
+snap(42.60, 0.95)                                   # the lockup lands
+impact(42.60, 0.70, 48, 2.0)
+shimmer(42.62, 2.6, 0.34)
+blip(44.08, 0.30, 1240, True)                       # the button
+shimmer(44.10, 1.8, 0.16)
+
+sfx *= 1 - np.clip((T - 45.2) / 0.8, 0, 1)
 
 # ---------------------------------------------------------------- write stems
 def write(path, sig, peak=0.98):
