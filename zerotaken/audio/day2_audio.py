@@ -3,10 +3,13 @@
 Brighter than day 1 on purpose: C major rather than A minor, marimba-ish
 plucks and bells instead of saws, shakers and rim clicks instead of a heavy
 snare. One continuous piece — the transitions live in the SFX layer.
+
+The arrangement is deliberately sparse under the two pain beats and opens up
+at the brand reveal, so the turn in the script is also a turn in the music.
 """
 import numpy as np, wave, os
 
-SR = 48000; DUR = 36.0
+SR = 48000; DUR = 34.0
 N = int(SR * DUR); T = np.arange(N) / SR
 OUT = os.path.dirname(os.path.abspath(__file__))
 BPM = 120.0; BEAT = 60.0 / BPM; BAR = BEAT * 4
@@ -100,11 +103,11 @@ arp = np.zeros(N)
 step = BEAT/2
 for i in range(int(DUR/step)):
     t0 = i*step
-    if t0 < 3.6: continue
+    if t0 < 7.6: continue
     b = int(t0//BAR); notes = PROG[b % 4][1]
     pat = [0,1,2,1]
     f = NOTE[notes[pat[i % 4]]] * (2.0 if (i % 8) in (2,6) else 1.0)
-    g = np.clip((t0-3.4)/1.5, 0, 1) * (0.85 if t0 < 10.0 else 1.0)
+    g = np.clip((t0-7.4)/1.5, 0, 1) * (0.85 if t0 < 14.0 else 1.0)
     place(arp, bell(f, 0.42, 0.5*g, 0.6), t0)
 arp = arp*0.82 + fftconv(arp, IR)*0.26
 music += arp * 0.30
@@ -112,7 +115,7 @@ music += arp * 0.30
 # --- a bell melody lifting the last third ---------------------------------
 lead = np.zeros(N)
 MOTIF = [('E5',0.0,0.9),('G5',0.75,0.9),('C6',1.5,1.3),('A5',3.0,0.9),('G5',3.75,1.4)]
-for base_t in (22.0, 30.0):
+for base_t in (20.0, 28.0):
     for (nm, off, d) in MOTIF:
         t0 = base_t + off
         if t0 < DUR - 0.3: place(lead, bell(NOTE[nm], d, 0.45, 0.8), t0)
@@ -143,16 +146,16 @@ for b in range(NBARS):
     t0 = b*BAR
     if t0 >= DUR: break
     thin = t0 >= DUR - BAR*1.2
-    if t0 >= 2.0:
-        kick(t0, 0.85 if t0 < 8.0 else (0.7 if thin else 1.0))
-        kick(t0 + BEAT*2, 0.75 if t0 < 8.0 else (0.6 if thin else 0.9))
+    if t0 >= 0.0:
+        kick(t0, 0.70 if t0 < 8.0 else (0.7 if thin else 1.0))
+        kick(t0 + BEAT*2, 0.62 if t0 < 8.0 else (0.6 if thin else 0.9))
     if t0 >= 4.0:
-        clap(t0 + BEAT, 0.42 if t0 < 10.0 else (0.4 if thin else 0.62))
-        clap(t0 + BEAT*3, 0.46 if t0 < 10.0 else (0.44 if thin else 0.66))
-    if t0 >= 6.0:
+        clap(t0 + BEAT*3, 0.40 if t0 < 8.0 else (0.44 if thin else 0.66))
+    if t0 >= 8.0:
+        clap(t0 + BEAT, 0.62 if not thin else 0.4)
         for k in range(8):
             shaker(t0 + k*BEAT/2, (0.16 if k % 2 else 0.26) * (0.55 if thin else 1.0))
-    if t0 >= 16.0 and not thin:
+    if t0 >= 14.0 and not thin:
         rim(t0 + BEAT*1.5, 0.28); rim(t0 + BEAT*3.5, 0.24)
 music += drums * 0.38
 
@@ -167,7 +170,7 @@ for b in range(NBARS):
         duck[i0:i0+n] = np.minimum(duck[i0:i0+n], 0.70 + 0.30*np.clip(x/0.26, 0, 1)**0.6)
 music = music * (0.78 + 0.22*duck)
 music *= np.clip(T/0.35, 0, 1)**1.2
-music *= 1 - np.clip((T - 34.4)/1.6, 0, 1)**1.3
+music *= 1 - np.clip((T - 32.4)/1.6, 0, 1)**1.3
 music = music*0.88 + fftconv(music, IR)*0.13
 
 # ------------------------------------------------------------------- SFX
@@ -208,55 +211,65 @@ def thunk(t0, g=0.45):
     s = s*0.85 + fftconv(s, IR)[:n]*0.35
     place(sfx, s*g, t0)
 
-# 1 · the three checks stack up
-swish(0.05, 0.55, 0.26); ding(0.10, 0.26, 2093)
-for i in range(3):
-    pop(0.62 + i*0.20, 0.42, 480 + i*70)
-    ding(0.82 + i*0.20, 0.16, 1568 + i*180)
+# 1 · the pain: a feed of names, each one stamped
+swish(0.02, 0.55, 0.24); 
+for i in range(3):                                   # a card crosses the line
+    thunk(0.26 + i * 1.28, 0.30)
+    pop(0.28 + i * 1.28, 0.20, 300, 1.5)
+for i in range(26):                                  # the counter climbing
+    keytick(0.34 + i * 0.086, 0.038)
 
-# 2 · the price
+# 2 · the pain: the AI names were gone too
 swish(3.86, 0.50, 0.30); pop(4.12, 0.40, 430)
-pop(4.95, 0.34, 560); ding(5.32, 0.26, 1760)
-pop(5.62, 0.34, 380)
-for i in range(9): keytick(5.66 + i*0.09, 0.055)
-thunk(6.38, 0.42)
-pop(6.62, 0.30, 620)
-
-# 3 · brandability
-swish(9.86, 0.50, 0.30); pop(10.12, 0.40, 430)
-n_s = 22
-for i in range(n_s): keytick(10.60 + i*0.052, 0.045)
-ding(11.78, 0.36, 2093)
+for i in range(3): pop(4.18 + i * 0.14, 0.22, 520 + i * 40)
 for i in range(3):
-    pop(10.97 + i*0.22, 0.26, 500 + i*60)
-    ding(11.87 + i*0.22, 0.18, 1568 + i*140)
-pop(12.72, 0.30, 620)
+    thunk(5.37 + i * 0.34, 0.34)
+    pop(5.39 + i * 0.34, 0.18, 300, 1.4)
+pop(6.72, 0.30, 380, 1.4)
 
-# 4 · the handles
-swish(15.86, 0.50, 0.30); pop(16.12, 0.40, 430)
-for i in range(5): pop(16.57 + i*0.13, 0.24, 520 + i*40)
-for i in range(5): ding(17.26 + i*0.14, 0.22, 1568 + i*130)
-sparkle(18.12, 0.34, 11, 0.7); pop(18.14, 0.40, 700)
-
-# 5 · the shortcut
-swish(21.86, 0.50, 0.30)
-for i in range(3): pop(22.32 + i*0.10, 0.26, 520 + i*50)
-pop(22.88, 0.36, 460)
+# 3 · the fix
+swish(7.86, 0.55, 0.34)
+ding(8.06, 0.50, 1046.5); sparkle(8.08, 0.42, 14, 0.8); pop(8.06, 0.42, 380)
+swish(9.32, 0.40, 0.22, False)                       # the mark makes room
+pop(10.22, 0.36, 460)
 q = 'eco coffee subscription'
 for i in range(len(q)):
-    if q[i] != ' ': keytick(23.30 + i*(1.05/(len(q)+0.6)), 0.06)
+    if q[i] != ' ': keytick(10.55 + i * (0.90/(len(q)+0.6)), 0.06)
 for r in range(3):
-    pop(24.47 + r*0.24, 0.34, 500 + r*45)
-    for k in range(3): ding(24.82 + r*0.24 + (2-k)*0.09, 0.15, 1760 + k*160)
-sparkle(25.92, 0.36, 13, 0.8)
+    pop(11.57 + r * 0.22, 0.34, 500 + r * 45)
+    ding(11.90 + r * 0.22, 0.24, 1760 + r * 130)
+sparkle(12.62, 0.36, 13, 0.8)
 
-# 6 · close
-swish(29.86, 0.52, 0.32)
-ding(30.95, 0.46, 1046.5); sparkle(30.96, 0.40, 14, 0.8)
-pop(30.95, 0.40, 380)
-pop(32.32, 0.40, 700); ding(32.36, 0.30, 2093)
-sparkle(34.05, 0.22, 7, 0.6)
-sfx *= 1 - np.clip((T - 35.2)/0.8, 0, 1)
+# 4 · the real price
+swish(13.86, 0.50, 0.30); pop(14.12, 0.40, 430)
+pop(14.86, 0.34, 560); ding(15.22, 0.26, 1760)
+pop(15.46, 0.34, 380)
+for i in range(9): keytick(15.50 + i * 0.09, 0.055)
+thunk(16.22, 0.42)
+pop(16.48, 0.30, 620)
+ding(17.98, 0.24, 1568)                              # the good row is singled out
+
+# 5 · the score
+swish(19.86, 0.50, 0.30); pop(20.12, 0.40, 430)
+for i in range(20): keytick(20.40 + i * 0.052, 0.045)
+ding(21.48, 0.36, 2093)
+for i in range(3):
+    pop(20.68 + i * 0.18, 0.26, 500 + i * 60)
+    ding(21.50 + i * 0.18, 0.18, 1568 + i * 140)
+
+# 6 · the handle
+swish(23.86, 0.50, 0.30); pop(24.12, 0.40, 430)
+for i in range(5): pop(24.30 + i * 0.10, 0.24, 520 + i * 40)
+for i in range(5): ding(24.90 + i * 0.11, 0.22, 1568 + i * 130)
+sparkle(25.58, 0.34, 11, 0.7); pop(25.60, 0.40, 700)
+
+# 7 · close
+swish(27.86, 0.52, 0.32)
+ding(28.95, 0.46, 1046.5); sparkle(28.96, 0.40, 14, 0.8); pop(28.95, 0.40, 380)
+pop(30.32, 0.40, 700); ding(30.36, 0.30, 2093)
+sparkle(32.05, 0.22, 7, 0.6)
+
+sfx *= 1 - np.clip((T - 33.2)/0.8, 0, 1)
 
 def write(path, sig, peak=0.92):
     m = np.abs(sig).max()

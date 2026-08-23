@@ -1,18 +1,19 @@
 /* ============================================================================
-   ZEROTAKEN — day 2  ·  "3 checks before you buy"
-   9:16 · 1080x1920 · 30fps · 36.0s
+   ZEROTAKEN — day 2  ·  "Everything taken?"
+   9:16 · 1080x1920 · 30fps · 34.0s
    ----------------------------------------------------------------------------
    A deliberately BRIGHT film, not a recolour of the dark one. The dark house
    style makes light the subject; here the subject is paper and shadow. Depth
    comes from elevation, colour from soft washes and flat brand tints, and the
    motion is springy the way light product UI is, rather than floaty.
 
-    0– 4  HOOK      the three checks stack up          "3 checks before you buy"
-    4–10  CHECK 1   registrar price vs aftermarket     "Really available?"
-   10–16  CHECK 2   brandability gauge to 92           "Worth remembering?"
-   16–22  CHECK 3   five platform handles tick green   "Handle free?"
-   22–30  SHORTCUT  the checks dock, results land      "ZeroTaken does all three"
-   30–36  CLOSE     results collapse into the logo     "zerotaken.com"
+    0– 4  PAIN 1    a feed of names, each stamped TAKEN  "Everything taken?"
+    4– 8  PAIN 2    the AI generator's names, also gone  "Even the AI ones?"
+    8–14  THE FIX   brand, then results that are free    "Only what you can register"
+   14–20  PRICE     $12 registrar vs $2,450 aftermarket  "At the real price"
+   20–24  SCORE     brandability dial to 92              "Scored before you buy"
+   24–28  HANDLE    five platforms tick free             "And the handle"
+   28–34  CLOSE     results collapse into the logo       "zerotaken.com"
    ========================================================================== */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -439,122 +440,366 @@
     return { left: left, block: block, top: yZ - s, bottom: yT };
   }
 
-  /* ============================== SCENES ============================== */
+  /* ============================== SCENES ==============================
+     Opens on the pain, the way the dark film does: a feed of names the
+     viewer has already tried, each one stamped TAKEN as it goes past. */
 
-  var CHECKS = [
-    { n: 1, q: 'Really available?', tint: C.peach },
-    { n: 2, q: 'Worth remembering?', tint: C.lav },
-    { n: 3, q: 'Handle free?', tint: C.mint }
-  ];
+  var TRIED = ['northstar.com', 'lumen.com', 'brightpath.com', 'kindred.com',
+               'atlas.com', 'vertex.com', 'summit.com', 'orbit.com',
+               'helix.com', 'cobalt.com', 'meridian.com', 'quanta.com'];
 
-  /* --- 1. HOOK · 0–4 ------------------------------------------------------ */
-  function sceneHook(ctx, t, dur) {
-    paper(ctx, t, [[C.peach, 0.22, 0.20, 0.62, 0.03, 0.05, 0.85],
-                   [C.sky, 0.82, 0.30, 0.55, 0.03, 0.043, 0.55],
-                   [C.mint, 0.50, 0.88, 0.70, 0.04, 0.037, 0.60]]);
-
-    riseWords(ctx, '3 checks', H * 0.235, W * 0.150, inv(t, -0.16, 0.66), { hotWords: [0] });
+  /* one row of the feed, in its two states */
+  function feedCard(ctx, o) {
+    var w = o.w * o.scale, h = o.h * o.scale, r = h * 0.32;
+    if (o.alpha <= 0.004) return;
+    var x = o.x - w / 2, y = o.y - h / 2;
     ctx.save();
-    ctx.globalAlpha = smooth(inv(t, 0.14, 0.58));
-    var s2 = W * 0.052;
-    setFont(ctx, '400', s2);
-    var sub = 'before you buy a domain';
-    var sw2 = ctx.measureText(sub).width;
-    ctx.fillStyle = C.ink2;
-    ctx.fillText(sub, (W - sw2) / 2, H * 0.300);
-    ctx.restore();
-
-    for (var i = 0; i < 3; i++) {
-      var p = spring(inv(t, 0.30 + i * 0.18, 1.00 + i * 0.18), 1.5);
-      if (p <= 0.002) continue;
-      var y = H * (0.445 + i * 0.140);
-      var lift = (1 - clamp(p)) * H * 0.05;
-      var hv = hover(t, i, 0.006);
-      var h = H * 0.115;
+    ctx.globalAlpha = o.alpha;
+    card(ctx, x, y, w, h, r, o.elev, { fill: o.struck > 0.5 ? '#FFF6F7' : C.card });
+    var fs = h * 0.36;
+    setFont(ctx, '700', fs);
+    var tx = x + h * 0.42, ty = o.y + fs * 0.35;
+    var tw = ctx.measureText(o.text).width;
+    ctx.fillStyle = o.struck > 0.4 ? mix(C.ink, '#B9AFA6', o.struck) : C.ink;
+    ctx.fillText(o.text, tx, ty);
+    if (o.struck > 0.02) {
       ctx.save();
-      ctx.globalAlpha = Math.min(1, inv(t, 0.30 + i * 0.18, 0.50 + i * 0.18) * 1.4);
-      card(ctx, M, y - h / 2 + lift + hv, CW, h, h * 0.32, (0.55 + 0.45 * clamp(p)) * (1 + 0.10 * osc(t, 0.30, i)));
-      var cy = y + lift + hv;
-      shine(ctx, M, cy - h / 2, CW, h, h * 0.32, t, 2.4, 0.32, i * 0.30);
-      // tinted swatch on the left, then the badge
-      ctx.save();
-      rr(ctx, M, cy - h / 2, h * 0.30, h, h * 0.32); ctx.fillStyle = CHECKS[i].tint; ctx.fill();
-      rr(ctx, M + h * 0.16, cy - h / 2, h * 0.16, h, 0); ctx.fillStyle = CHECKS[i].tint; ctx.fill();
+      ctx.lineCap = 'round';
+      ctx.lineWidth = Math.max(2, h * 0.055);
+      ctx.strokeStyle = C.red;
+      ctx.beginPath();
+      ctx.moveTo(tx - fs * 0.10, o.y + fs * 0.02);
+      ctx.lineTo(tx - fs * 0.10 + (tw + fs * 0.20) * clamp(o.struck * 1.35), o.y + fs * 0.02);
+      ctx.stroke();
       ctx.restore();
-      badge(ctx, M + h * 0.62, cy, h * 0.235, CHECKS[i].n, inv(t, 0.46 + i * 0.18, 0.84 + i * 0.18));
-      setFont(ctx, '700', W * 0.050);
-      ctx.fillStyle = C.ink;
-      ctx.fillText(CHECKS[i].q, M + h * 1.06, cy + W * 0.018);
+      var bp = clamp((o.struck - 0.20) / 0.45);
+      if (bp > 0.01) {
+        setFont(ctx, '700', h * 0.24);
+        var lbl = o.label || 'TAKEN';
+        var lw = ctx.measureText(lbl).width, pw = h * 0.34;
+        var bw = lw + pw * 2, bh = h * 0.52;
+        var k = spring(bp, 2.0);
+        ctx.save();
+        ctx.translate(x + w - h * 0.40 - bw / 2, o.y);
+        ctx.scale(k, k);
+        rr(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2);
+        ctx.fillStyle = C.rose; ctx.fill();
+        ctx.fillStyle = '#B32438';
+        ctx.fillText(lbl, -lw / 2, h * 0.085);
+        ctx.restore();
+      }
+    } else {
+      // still checking
+      ctx.save();
+      ctx.globalAlpha = ctx.globalAlpha * (0.35 + 0.35 * Math.abs(Math.sin(o.y * 0.01 + o.spin)));
+      ctx.beginPath(); ctx.arc(x + w - h * 0.52, o.y, h * 0.10, 0, TAU);
+      ctx.fillStyle = C.ink3; ctx.fill();
       ctx.restore();
     }
-
-    ctx.save();
-    wipeLabel(ctx, 'DO THIS BEFORE YOU SPEND A CENT', H * 0.845, W * 0.026, C.ink3,
-      W * 0.0085, inv(t, 1.55, 2.35), smooth(inv(t, 1.50, 1.90)) * 0.95);
     ctx.restore();
   }
 
-  /* --- 2. CHECK ONE · 4–10 · the price ------------------------------------ */
-  function sceneCheck1(ctx, t, dur) {
-    paper(ctx, t, [[C.peach, 0.25, 0.22, 0.66, 0.03, 0.05, 0.95],
-                   [C.rose, 0.78, 0.62, 0.60, 0.035, 0.041, 0.75],
-                   [C.sky, 0.35, 0.92, 0.60, 0.03, 0.033, 0.45]]);
-    stepHead(ctx, t, 0, 'Really available?');
+  function feed(ctx, t, o) {
+    var count = 10, step = o.step, focusY = o.focusY;
+    var top = focusY - step * 3.4;
+    var frac = ((o.scroll % 1) + 1) % 1;
+    var base = Math.floor(o.scroll);
+    for (var i = count - 1; i >= 0; i--) {
+      var yy = top + (i - frac) * step;
+      var idx = ((i + base) % TRIED.length + TRIED.length) % TRIED.length;
+      var d = (yy - focusY) / (H * 0.34);
+      var sc = (1 - Math.min(0.34, Math.abs(d) * 0.26)) * o.scale;
+      var al = clamp(1.25 - Math.abs(d) * 1.25) * o.alpha;
+      if (al <= 0.005) continue;
+      feedCard(ctx, {
+        x: W / 2 + Math.sin(t * 0.5 + i * 0.9) * W * 0.004,
+        y: yy, w: CW, h: H * 0.078, scale: sc, alpha: al,
+        text: TRIED[idx], spin: i * 1.3,
+        elev: 0.35 + 0.55 * clamp(1 - Math.abs(d) * 1.3),
+        struck: smooth(clamp((focusY - yy) / (step * 0.62)))
+      });
+    }
+    // the feed fades out at both ends instead of being cut off
+    var g1 = ctx.createLinearGradient(0, focusY - step * 4.2, 0, focusY - step * 1.7);
+    g1.addColorStop(0, C.paper); g1.addColorStop(1, hexa(C.paper, 0));
+    ctx.fillStyle = g1; ctx.fillRect(0, focusY - step * 5.0, W, step * 3.3);
+    var g2 = ctx.createLinearGradient(0, focusY + step * 2.2, 0, focusY + step * 5.4);
+    g2.addColorStop(0, hexa(C.paper, 0)); g2.addColorStop(1, C.paper);
+    ctx.fillStyle = g2; ctx.fillRect(0, focusY + step * 2.2, W, step * 3.6);
+  }
 
-    var ch = H * 0.430, cy = H * 0.508;
+  /* --- 1. PAIN · 0–4 · everything you type is taken ----------------------- */
+  function sceneFeed(ctx, t, dur) {
+    paper(ctx, t, [[C.rose, 0.24, 0.24, 0.66, 0.03, 0.05, 0.85],
+                   [C.peach, 0.80, 0.58, 0.60, 0.035, 0.042, 0.70],
+                   [C.sky, 0.44, 0.94, 0.62, 0.03, 0.034, 0.45]]);
+
+    feed(ctx, t, {
+      scroll: 1.2 + t * 0.78, focusY: H * 0.585, step: H * 0.098,
+      scale: 1, alpha: 1
+    });
+
+    riseWords(ctx, 'Everything taken?', H * 0.150, W * 0.100, inv(t, -0.16, 0.60),
+      { hotWords: [1], hot: C.red });
+
+    // a counter of how many the viewer has already burned through
+    var cp = easeOut4(inv(t, 0.30, 2.60));
+    var cnt = Math.round(lerp(0, 137, cp));
+    ctx.save();
+    ctx.globalAlpha = smooth(inv(t, 0.22, 0.60));
+    chip(ctx, W / 2, H * 0.228, cnt + ' names tried', W * 0.032, C.rose, '#B32438', 1);
+    ctx.restore();
+
+    ctx.save();
+    wipeLabel(ctx, 'SEARCH · TAKEN · REPEAT', H * 0.905, W * 0.026, C.ink3,
+      W * 0.0090, inv(t, 1.60, 2.40), smooth(inv(t, 1.55, 1.95)) * 0.95);
+    ctx.restore();
+  }
+
+  /* --- 2. PAIN · 4–8 · the AI ones were taken too ------------------------- */
+  var AI_NAMES = ['brightpath.com', 'nordly.com', 'craftbase.com'];
+  var AI_BADGE = ['TAKEN', '$2,450', 'TAKEN'];
+  function sceneAI(ctx, t, dur) {
+    paper(ctx, t, [[C.rose, 0.26, 0.26, 0.68, 0.03, 0.049, 0.90],
+                   [C.lav, 0.78, 0.60, 0.58, 0.035, 0.041, 0.65],
+                   [C.peach, 0.42, 0.94, 0.60, 0.03, 0.033, 0.50]]);
+
+    riseWords(ctx, 'Even the AI ones?', H * 0.148, W * 0.100, inv(t, -0.16, 0.64),
+      { hotWords: [2], hot: C.red });
+
+    var ch = H * 0.400, cy = H * 0.545;
+    var p = spring(inv(t, -0.06, 0.70), 1.4);
+    var fail = smooth(inv(t, 2.55, 3.30));
+    ctx.save();
+    var top = cy - ch / 2 + (1 - clamp(p)) * H * 0.22 + hover(t, 0);
+    ctx.translate(W / 2, top + ch / 2);
+    ctx.rotate(fail * 0.035);
+    ctx.translate(-W / 2, -(top + ch / 2));
+    card(ctx, M, top, CW, ch, W * 0.055, 0.9 + 0.06 * osc(t, 0.34));
+    shine(ctx, M, top, CW, ch, W * 0.055, t, 2.4, 0.30);
+
+    setFont(ctx, '700', W * 0.040);
+    ctx.fillStyle = C.ink3;
+    ctx.fillText('AI NAME GENERATOR', M + W * 0.055, top + H * 0.058);
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(M + W * 0.05, top + H * 0.086); ctx.lineTo(M + CW - W * 0.05, top + H * 0.086);
+    ctx.stroke();
+
+    for (var i = 0; i < 3; i++) {
+      var rp = smooth(inv(t, 0.16 + i * 0.14, 0.56 + i * 0.14));
+      if (rp <= 0.004) continue;
+      var ry = top + H * 0.150 + i * H * 0.088;
+      var hit = smooth(inv(t, 1.35 + i * 0.34, 1.75 + i * 0.34));
+      ctx.save();
+      ctx.globalAlpha = rp;
+      ctx.translate((1 - rp) * W * 0.06, 0);
+      var rh = H * 0.070;
+      rr(ctx, M + W * 0.050, ry - rh / 2, CW - W * 0.100, rh, rh * 0.34);
+      ctx.fillStyle = hit > 0.4 ? '#FFF1F3' : '#F7F5F1'; ctx.fill();
+      setFont(ctx, '700', W * 0.038);
+      var tx = M + W * 0.082, tw = ctx.measureText(AI_NAMES[i]).width;
+      ctx.fillStyle = mix(C.ink, '#B9AFA6', hit);
+      ctx.fillText(AI_NAMES[i], tx, ry + W * 0.013);
+      if (hit > 0.02) {
+        ctx.save();
+        ctx.lineCap = 'round'; ctx.lineWidth = W * 0.008;
+        ctx.strokeStyle = C.red;
+        ctx.beginPath();
+        ctx.moveTo(tx - W * 0.006, ry + W * 0.001);
+        ctx.lineTo(tx - W * 0.006 + (tw + W * 0.012) * clamp(hit * 1.35), ry + W * 0.001);
+        ctx.stroke();
+        ctx.restore();
+        var bp = clamp((hit - 0.25) / 0.45);
+        if (bp > 0.01) {
+          setFont(ctx, '700', W * 0.026);
+          var lw = ctx.measureText(AI_BADGE[i]).width, bw = lw + W * 0.052, bh = rh * 0.62;
+          var k = spring(bp, 2.0);
+          ctx.save();
+          ctx.translate(M + CW - W * 0.086 - bw / 2, ry);
+          ctx.scale(k, k);
+          rr(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2);
+          ctx.fillStyle = C.rose; ctx.fill();
+          ctx.fillStyle = '#B32438';
+          ctx.fillText(AI_BADGE[i], -lw / 2, W * 0.009);
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+
+    var v = spring(inv(t, 2.70, 3.40), 1.6);
+    if (v > 0.002) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, inv(t, 2.70, 2.96) * 1.5);
+      chip(ctx, W / 2, H * 0.800, 'GENERATED, THEN GONE', W * 0.030, C.rose, '#B32438', v);
+      ctx.restore();
+    }
+    ctx.save();
+    wipeLabel(ctx, 'THREE OF THREE, ALREADY REGISTERED', H * 0.885, W * 0.025, C.ink3,
+      W * 0.0080, inv(t, 3.30, 4.05), smooth(inv(t, 3.25, 3.60)) * 0.95);
+    ctx.restore();
+  }
+
+  /* --- 3. THE FIX · 8–14 -------------------------------------------------- */
+  var GOOD = ['brewnorth.com', 'kindroast.com', 'ovalgrove.com'];
+  function sceneFix(ctx, t, dur) {
+    paper(ctx, t, [[C.peach, 0.26, 0.24, 0.70, 0.03, 0.05, 0.95],
+                   [C.mint, 0.78, 0.56, 0.62, 0.035, 0.042, 0.80],
+                   [C.sky, 0.42, 0.94, 0.62, 0.03, 0.034, 0.55]]);
+
+    // the brand lands, then makes room for the product
+    var shrink = smooth(inv(t, 1.35, 2.10));
+    var ls = lerp(W * 0.150, W * 0.070, shrink);
+    var ly = lerp(H * 0.400, H * 0.130, shrink);
+    ctx.save();
+    lockup(ctx, W / 2, ly + hover(t, 9, 0.003), ls,
+      { swoosh: smooth(inv(t, 0.18, 0.80)), reserveSwoosh: true });
+    ctx.restore();
+    var ba = inv(t, 0.02, 0.95);
+    if (ba > 0 && ba < 1) confetti(ctx, W / 2, H * 0.40, ba, W * 0.55);
+
+    var ha = smooth(inv(t, 1.95, 2.40));
+    if (ha > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = ha;
+      riseWords(ctx, 'Only what you can register', H * 0.255, W * 0.062, inv(t, 1.95, 2.75),
+        { hotWords: [3, 4], hot: C.orange });
+      ctx.restore();
+    }
+
+    // the search
+    var sp2 = spring(inv(t, 2.20, 2.95), 1.4);
+    var sy = H * 0.330, sh = H * 0.086;
+    if (sp2 > 0.002) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, inv(t, 2.20, 2.44) * 1.5);
+      var syh = sy + (1 - clamp(sp2)) * H * 0.06 + hover(t, 7, 0.004);
+      card(ctx, M, syh, CW, sh, sh / 2, 0.8 + 0.08 * osc(t, 0.36));
+      shine(ctx, M, syh, CW, sh, sh / 2, t, 2.0, 0.34);
+      var by = syh + sh / 2;
+      var q = 'eco coffee subscription';
+      var tp = inv(t, 2.55, 3.45);
+      var per = (3.45 - 2.55) / (q.length + 0.6);
+      var n = Math.floor(clamp(tp) * (q.length + 0.6));
+      var hold = clamp(1 - (t - (2.55 + n * per)) / 0.26);
+      setFont(ctx, '700', W * 0.040);
+      var r2 = typeOut(ctx, q, M + W * 0.055, by + W * 0.014, tp, W * 0.040, C.ink, C.orange, hold);
+      if (!r2.done && tp > 0.01) caret(ctx, r2.x, by + W * 0.014, W * 0.040, t, 0.9, C.orange);
+      var bw2 = W * 0.10;
+      rr(ctx, M + CW - bw2 - sh * 0.16, by - (sh - sh * 0.32) / 2, bw2, sh - sh * 0.32, (sh - sh * 0.32) / 2);
+      ctx.fillStyle = C.orange; ctx.fill();
+      ctx.save();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = W * 0.008; ctx.lineCap = 'round';
+      var mx = M + CW - bw2 / 2 - sh * 0.16, my = by;
+      ctx.beginPath(); ctx.arc(mx - W * 0.004, my - W * 0.004, W * 0.014, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(mx + W * 0.006, my + W * 0.006); ctx.lineTo(mx + W * 0.017, my + W * 0.017); ctx.stroke();
+      ctx.restore();
+      ctx.restore();
+    }
+
+    // every result already registrable, at standard price
+    for (var r = 0; r < 3; r++) {
+      var rp = spring(inv(t, 3.55 + r * 0.22, 4.25 + r * 0.22), 1.6);
+      if (rp <= 0.002) continue;
+      var ry = H * 0.470 + r * H * 0.105, rh = H * 0.088;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, inv(t, 3.55 + r * 0.22, 3.78 + r * 0.22) * 1.5);
+      var lift = (1 - clamp(rp)) * H * 0.05, hv = hover(t, r + 3, 0.0055);
+      card(ctx, M, ry + lift + hv, CW, rh, rh * 0.30, 0.75 + 0.08 * osc(t, 0.33, r));
+      shine(ctx, M, ry + lift + hv, CW, rh, rh * 0.30, t, 2.2, 0.34, r * 0.28);
+      setFont(ctx, '700', W * 0.046);
+      ctx.fillStyle = C.ink;
+      ctx.fillText(GOOD[r], M + W * 0.050, ry + lift + hv + rh * 0.62);
+      var gp = inv(t, 3.85 + r * 0.22, 4.15 + r * 0.22);
+      if (gp > 0.01) {
+        setFont(ctx, '700', W * 0.026);
+        var lbl = 'available · $12';
+        var lw = ctx.measureText(lbl).width, bw3 = lw + W * 0.050, bh3 = rh * 0.52;
+        var k2 = spring(clamp(gp), 1.9);
+        ctx.save();
+        ctx.translate(M + CW - W * 0.048 - bw3 / 2, ry + lift + hv + rh / 2);
+        ctx.scale(k2, k2);
+        rr(ctx, -bw3 / 2, -bh3 / 2, bw3, bh3, bh3 / 2);
+        ctx.fillStyle = C.mint; ctx.fill();
+        ctx.fillStyle = C.greenD;
+        ctx.fillText(lbl, -lw / 2, W * 0.009);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+    var burst = inv(t, 4.60, 5.55);
+    if (burst > 0 && burst < 1) confetti(ctx, W / 2, H * 0.56, burst, W * 0.60);
+
+    ctx.save();
+    wipeLabel(ctx, 'AI DOMAIN NAME GENERATOR · LIVE AVAILABILITY', H * 0.885, W * 0.025, C.ink3,
+      W * 0.0075, inv(t, 4.90, 5.75), smooth(inv(t, 4.85, 5.20)) * 0.95);
+    ctx.restore();
+  }
+
+  /* --- 4. THE REAL PRICE · 14–20 ------------------------------------------ */
+  function scenePrice(ctx, t, dur) {
+    paper(ctx, t, [[C.peach, 0.25, 0.22, 0.66, 0.03, 0.05, 0.95],
+                   [C.rose, 0.78, 0.62, 0.60, 0.035, 0.041, 0.70],
+                   [C.mint, 0.35, 0.92, 0.60, 0.03, 0.033, 0.50]]);
+    plainHead(ctx, t, 'At the real price', [3], C.orange);
+
+    var ch = H * 0.400, cy = H * 0.520;
     var p = spring(inv(t, -0.06, 0.72), 1.4);
     ctx.save();
     var top = cy - ch / 2 + (1 - clamp(p)) * H * 0.24 + hover(t, 0);
     card(ctx, M, top, CW, ch, W * 0.055, 0.9 + 0.06 * osc(t, 0.34));
     shine(ctx, M, top, CW, ch, W * 0.055, t, 2.6, 0.30);
 
-    setFont(ctx, '700', W * 0.062);
+    setFont(ctx, '700', W * 0.058);
     ctx.fillStyle = C.ink;
-    ctx.fillText('northstar.com', M + W * 0.058, top + H * 0.078);
-    setFont(ctx, '400', W * 0.031);
+    ctx.fillText('brewnorth.com', M + W * 0.058, top + H * 0.074);
+    setFont(ctx, '400', W * 0.030);
     ctx.fillStyle = C.ink3;
-    ctx.fillText('the name you actually want', M + W * 0.058, top + H * 0.118);
-
+    ctx.fillText('what it actually costs', M + W * 0.058, top + H * 0.112);
     ctx.strokeStyle = C.line; ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.moveTo(M + W * 0.05, top + H * 0.152); ctx.lineTo(M + CW - W * 0.05, top + H * 0.152); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(M + W * 0.05, top + H * 0.142); ctx.lineTo(M + CW - W * 0.05, top + H * 0.142);
+    ctx.stroke();
 
-    var focus = smooth(inv(t, 4.15, 4.85));          // the good row is singled out
+    var focus = smooth(inv(t, 3.95, 4.70));
     ctx.save();
     ctx.globalAlpha = ctx.globalAlpha * (1 - focus * 0.58);
     ctx.translate(0, focus * H * 0.012);
-    priceRow(ctx, t, M + W * 0.058, top + H * 0.345, CW - W * 0.116,
-      'Aftermarket ask', '$' + Math.round(lerp(0, 2450, easeOut4(inv(t, 1.62, 2.42)))).toLocaleString('en-US'),
-      C.red, false, 1.62, 2.36);
+    priceRow(ctx, t, M + W * 0.058, top + H * 0.322, CW - W * 0.116,
+      'Aftermarket ask', '$' + Math.round(lerp(0, 2450, easeOut4(inv(t, 1.45, 2.25)))).toLocaleString('en-US'),
+      C.red, false, 1.45, 2.20);
     ctx.restore();
     var fk = 1 + 0.055 * focus;
     ctx.save();
-    ctx.translate(W / 2, top + H * 0.235); ctx.scale(fk, fk); ctx.translate(-W / 2, -(top + H * 0.235));
+    ctx.translate(W / 2, top + H * 0.222); ctx.scale(fk, fk); ctx.translate(-W / 2, -(top + H * 0.222));
     if (focus > 0.02) {
-      var rp2 = ((t - 4.15) % 1.25) / 1.25;
+      var rp2 = ((t - 3.95) % 1.25) / 1.25;
       ctx.save();
       ctx.globalAlpha = 0.55 * focus * Math.sin(rp2 * Math.PI);
       ctx.lineWidth = 4 + 10 * rp2;
       ctx.strokeStyle = C.green;
-      rr(ctx, M + W * 0.058 - 10 - rp2 * 26, top + H * 0.235 - H * 0.039 - 8 - rp2 * 18,
+      rr(ctx, M + W * 0.058 - 10 - rp2 * 26, top + H * 0.222 - H * 0.039 - 8 - rp2 * 18,
         CW - W * 0.116 + 20 + rp2 * 52, H * 0.078 + 16 + rp2 * 36, H * 0.030);
       ctx.stroke();
       ctx.restore();
     }
-    priceRow(ctx, t, M + W * 0.058, top + H * 0.235, CW - W * 0.116,
-      'Standard registrar', '$12', C.green, true, 0.95, 1.30);
+    priceRow(ctx, t, M + W * 0.058, top + H * 0.222, CW - W * 0.116,
+      'Standard registrar', '$12', C.green, true, 0.85, 1.20);
     ctx.restore();
     ctx.restore();
 
-    var v = spring(inv(t, 2.60, 3.30), 1.6);
+    var v = spring(inv(t, 2.45, 3.15), 1.6);
     if (v > 0.002) {
       ctx.save();
-      ctx.globalAlpha = Math.min(1, inv(t, 2.60, 2.86) * 1.5);
-      chip(ctx, W / 2, H * 0.788, 'MOST "AVAILABLE" NAMES ARE LISTINGS', W * 0.028, C.rose, '#9A1B2E', v);
+      ctx.globalAlpha = Math.min(1, inv(t, 2.45, 2.70) * 1.5);
+      chip(ctx, W / 2, H * 0.775, 'NO BROKER MARKUP', W * 0.030, C.mint, C.greenD, v);
       ctx.restore();
     }
     ctx.save();
-    wipeLabel(ctx, 'CHECK THE REAL PRICE, NOT THE BADGE', H * 0.868, W * 0.025, C.ink3,
-      W * 0.0080, inv(t, 3.30, 4.10), smooth(inv(t, 3.25, 3.60)) * 0.95);
+    wipeLabel(ctx, 'PARKED, PREMIUM AND AFTERMARKET FILTERED OUT', H * 0.868, W * 0.024, C.ink3,
+      W * 0.0070, inv(t, 3.15, 4.00), smooth(inv(t, 3.10, 3.45)) * 0.95);
     ctx.restore();
   }
   function priceRow(ctx, t, x, y, w, label, value, col, ok, t0, t1) {
@@ -579,27 +824,25 @@
     ctx.restore();
   }
 
-  /* --- 3. CHECK TWO · 10–16 · brandability -------------------------------- */
-  function sceneCheck2(ctx, t, dur) {
+  /* --- 5. THE SCORE · 20–24 ----------------------------------------------- */
+  function sceneScore(ctx, t, dur) {
     paper(ctx, t, [[C.lav, 0.24, 0.24, 0.66, 0.03, 0.048, 0.95],
                    [C.sky, 0.80, 0.58, 0.58, 0.035, 0.04, 0.70],
                    [C.peach, 0.45, 0.92, 0.62, 0.03, 0.034, 0.55]]);
-    stepHead(ctx, t, 1, 'Worth remembering?');
+    plainHead(ctx, t, 'Scored before you buy', [1], C.orange);
 
-    var ch = H * 0.430, cy = H * 0.508;
-    var p = spring(inv(t, -0.06, 0.72), 1.4);
+    var ch = H * 0.360, cy = H * 0.505;
+    var p = spring(inv(t, -0.06, 0.62), 1.4);
     ctx.save();
     var top = cy - ch / 2 + (1 - clamp(p)) * H * 0.24 + hover(t, 1);
     card(ctx, M, top, CW, ch, W * 0.055, 0.9 + 0.06 * osc(t, 0.31));
-    shine(ctx, M, top, CW, ch, W * 0.055, t, 2.6, 0.30);
+    shine(ctx, M, top, CW, ch, W * 0.055, t, 2.4, 0.30);
 
-    // the dial
-    var gx = M + CW * 0.27, gy = top + ch * 0.44, R = W * 0.140;
+    var gx = M + CW * 0.27, gy = top + ch * 0.46, R = W * 0.125;
     var a0 = Math.PI * 0.72, sweep = Math.PI * 1.56;
-    var gp = easeOut4(inv(t, 0.55, 1.75));
+    var gp = easeOut4(inv(t, 0.35, 1.45));
     ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineWidth = W * 0.034;
+    ctx.lineCap = 'round'; ctx.lineWidth = W * 0.032;
     ctx.strokeStyle = '#EDE9E2';
     ctx.beginPath(); ctx.arc(gx, gy, R, a0, a0 + sweep); ctx.stroke();
     var g = ctx.createLinearGradient(gx - R, gy + R, gx + R, gy - R);
@@ -607,50 +850,43 @@
     ctx.strokeStyle = g;
     ctx.beginPath(); ctx.arc(gx, gy, R, a0, a0 + sweep * gp * 0.92); ctx.stroke();
     if (gp > 0.99) {
-      var cq = ((t - 1.75) % 1.5) / 1.5;
-      ctx.save();
-      ctx.lineCap = 'round'; ctx.lineWidth = W * 0.034;
+      var cq = ((t - 1.45) % 1.4) / 1.4;
       ctx.strokeStyle = 'rgba(255,255,255,' + (0.55 * Math.sin(cq * Math.PI)).toFixed(3) + ')';
       var ca2 = a0 + sweep * 0.92 * cq;
       ctx.beginPath(); ctx.arc(gx, gy, R, Math.max(a0, ca2 - 0.22), ca2); ctx.stroke();
-      ctx.restore();
     }
     ctx.restore();
-    setFont(ctx, '700', W * 0.125);
+    setFont(ctx, '700', W * 0.115);
     var val = String(Math.round(lerp(0, 92, gp)));
     var vw = ctx.measureText(val).width;
-    var na = smooth(inv(t, 0.55, 0.78));
     ctx.save();
-    ctx.globalAlpha = ctx.globalAlpha * na;
+    ctx.globalAlpha = ctx.globalAlpha * smooth(inv(t, 0.35, 0.58));
     ctx.fillStyle = C.ink;
-    ctx.fillText(val, gx - vw / 2, gy + W * 0.044);
+    ctx.fillText(val, gx - vw / 2, gy + W * 0.042);
     ctx.restore();
     setFont(ctx, '700', W * 0.024);
     var el = 'EXCELLENT';
-    ctx.fillStyle = C.greenD;
     ctx.save();
-    ctx.globalAlpha = ctx.globalAlpha * smooth(inv(t, 1.70, 2.00));
+    ctx.globalAlpha = ctx.globalAlpha * smooth(inv(t, 1.40, 1.70));
+    ctx.fillStyle = C.greenD;
     ctx.fillText(el, gx - ctx.measureText(el).width / 2, gy + R * 0.92);
     ctx.restore();
 
-    // the attributes
-    var labels = ['Short', 'Sayable', 'Memorable'];
-    var vals = [0.92, 0.86, 0.95];
+    var labels = ['Short', 'Sayable', 'Memorable'], vals = [0.92, 0.86, 0.95];
     for (var i = 0; i < 3; i++) {
-      var bp = easeOut4(inv(t, 0.95 + i * 0.22, 1.95 + i * 0.22));
-      var by = top + ch * 0.235 + i * ch * 0.215;
-      var bx = M + CW * 0.50;
+      var bp = easeOut4(inv(t, 0.65 + i * 0.18, 1.55 + i * 0.18));
+      var by = top + ch * 0.235 + i * ch * 0.215, bx = M + CW * 0.50;
       setFont(ctx, '400', W * 0.032);
       ctx.fillStyle = C.ink2;
       ctx.fillText(labels[i], bx, by - W * 0.010);
       bar(ctx, bx, by + W * 0.010, CW * 0.34, W * 0.024, bp * vals[i], C.orange);
       shine(ctx, bx, by + W * 0.010, CW * 0.34 * bp * vals[i], W * 0.024, W * 0.012, t, 1.9, 0.55, i * 0.22);
-      tickMark(ctx, bx + CW * 0.395, by + W * 0.022, W * 0.022, inv(t, 1.85 + i * 0.22, 2.15 + i * 0.22),
-        null, Math.sin(t * 1.9 + i * 1.2));
+      tickMark(ctx, bx + CW * 0.395, by + W * 0.022, W * 0.022,
+        inv(t, 1.45 + i * 0.18, 1.75 + i * 0.18), null, Math.sin(t * 1.9 + i * 1.2));
     }
     ctx.restore();
 
-    var pulse2 = inv(t, 4.20, 5.20);
+    var pulse2 = inv(t, 2.55, 3.55);
     if (pulse2 > 0 && pulse2 < 1) {
       ctx.save();
       ctx.globalAlpha = 0.42 * Math.sin(pulse2 * Math.PI);
@@ -659,250 +895,129 @@
       ctx.beginPath(); ctx.arc(gx, gy, R * (1.25 + 0.85 * pulse2), 0, TAU); ctx.stroke();
       ctx.restore();
     }
-    var v = spring(inv(t, 2.70, 3.40), 1.6) * (1 + 0.06 * clamp(Math.sin((t - 4.2) * 3.2)));
-    if (v > 0.002) {
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, inv(t, 2.70, 2.96) * 1.5);
-      chip(ctx, W / 2, H * 0.788, 'CANNOT SPELL IT? CANNOT FIND YOU.', W * 0.028, C.lav, '#4B3FA8', v);
-      ctx.restore();
-    }
     ctx.save();
-    wipeLabel(ctx, 'EVERY NAME SCORED FOR BRANDABILITY', H * 0.868, W * 0.025, C.ink3,
-      W * 0.0080, inv(t, 3.40, 4.20), smooth(inv(t, 3.35, 3.70)) * 0.95);
+    wipeLabel(ctx, 'LENGTH · PRONOUNCEABILITY · MEMORABILITY', H * 0.800, W * 0.025, C.ink3,
+      W * 0.0075, inv(t, 2.10, 2.95), smooth(inv(t, 2.05, 2.40)) * 0.95);
     ctx.restore();
   }
 
-  /* --- 4. CHECK THREE · 16–22 · the handles ------------------------------- */
+  /* --- 6. THE HANDLE · 24–28 ---------------------------------------------- */
   var PLATFORMS = ['YouTube', 'Instagram', 'TikTok', 'Facebook', 'Pinterest'];
-  function sceneCheck3(ctx, t, dur) {
+  function sceneHandles(ctx, t, dur) {
     paper(ctx, t, [[C.mint, 0.26, 0.26, 0.66, 0.03, 0.047, 0.95],
                    [C.sky, 0.78, 0.60, 0.58, 0.035, 0.039, 0.70],
                    [C.lav, 0.45, 0.93, 0.60, 0.03, 0.033, 0.50]]);
-    stepHead(ctx, t, 2, 'Handle free?');
+    plainHead(ctx, t, 'And the handle', [2], C.orange);
 
-    var ch = H * 0.430, cy = H * 0.508;
-    var p = spring(inv(t, -0.06, 0.72), 1.4);
+    var ch = H * 0.375, cy = H * 0.512;
+    var p = spring(inv(t, -0.06, 0.62), 1.4);
     ctx.save();
     var top = cy - ch / 2 + (1 - clamp(p)) * H * 0.24 + hover(t, 2);
     card(ctx, M, top, CW, ch, W * 0.055, 0.9 + 0.06 * osc(t, 0.29));
-    shine(ctx, M, top, CW, ch, W * 0.055, t, 2.6, 0.30);
+    shine(ctx, M, top, CW, ch, W * 0.055, t, 2.4, 0.30);
     setFont(ctx, '700', W * 0.050);
     ctx.fillStyle = C.ink;
-    ctx.fillText('@northstar', M + W * 0.055, top + H * 0.062);
+    ctx.fillText('@brewnorth', M + W * 0.055, top + H * 0.056);
 
     for (var i = 0; i < 5; i++) {
-      var rp = smooth(inv(t, 0.42 + i * 0.12, 0.80 + i * 0.12));
+      var rp = smooth(inv(t, 0.28 + i * 0.10, 0.62 + i * 0.10));
       if (rp <= 0.004) continue;
-      var ry = top + H * 0.128 + i * H * 0.070;
+      var ry = top + H * 0.112 + i * H * 0.058;
       ctx.save();
       ctx.globalAlpha = ctx.globalAlpha * rp;
       ctx.translate((1 - rp) * W * 0.05, 0);
-      setFont(ctx, '400', W * 0.036);
+      setFont(ctx, '400', W * 0.034);
       ctx.fillStyle = C.ink2;
-      ctx.fillText(PLATFORMS[i], M + W * 0.055, ry + W * 0.013);
-      setFont(ctx, '700', W * 0.028);
+      ctx.fillText(PLATFORMS[i], M + W * 0.055, ry + W * 0.012);
+      setFont(ctx, '700', W * 0.027);
       ctx.fillStyle = C.greenD;
-      ctx.globalAlpha = ctx.globalAlpha * smooth(inv(t, 1.30 + i * 0.14, 1.60 + i * 0.14));
-      var av = 'available';
-      ctx.fillText(av, M + CW - W * 0.155 - ctx.measureText(av).width, ry + W * 0.010);
+      ctx.globalAlpha = ctx.globalAlpha * smooth(inv(t, 0.90 + i * 0.11, 1.16 + i * 0.11));
+      var av = 'free';
+      ctx.fillText(av, M + CW - W * 0.150 - ctx.measureText(av).width, ry + W * 0.009);
       ctx.restore();
-      tickMark(ctx, M + CW - W * 0.082, ry, W * 0.027, inv(t, 1.24 + i * 0.14, 1.54 + i * 0.14),
-        null, Math.sin(t * 2.1 + i * 0.9));
+      tickMark(ctx, M + CW - W * 0.082, ry, W * 0.026,
+        inv(t, 0.86 + i * 0.11, 1.14 + i * 0.11), null, Math.sin(t * 2.1 + i * 0.9));
     }
     ctx.restore();
 
-    var burst = inv(t, 2.10, 3.10);
-    if (burst > 0 && burst < 1) confetti(ctx, W / 2, H * 0.58, burst, W * 0.55);
-    var burst2 = inv(t, 4.30, 5.40);
+    var burst = inv(t, 1.55, 2.55);
+    if (burst > 0 && burst < 1) confetti(ctx, W / 2, H * 0.56, burst, W * 0.55);
+    var v = spring(inv(t, 1.55, 2.25), 1.7);
+    if (v > 0.002) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, inv(t, 1.55, 1.80) * 1.5);
+      chip(ctx, W / 2, H * 0.775, 'ALL FIVE FREE', W * 0.036, C.mint, C.greenD, v);
+      ctx.restore();
+    }
+    var burst2 = inv(t, 2.80, 3.80);
     if (burst2 > 0 && burst2 < 1) {
-      confetti(ctx, W / 2, H * 0.72, burst2, W * 0.42, 22);
       ctx.save();
       ctx.globalAlpha = 0.40 * Math.sin(burst2 * Math.PI);
       ctx.lineWidth = 5 + 12 * burst2;
       ctx.strokeStyle = C.green;
-      rr(ctx, W * 0.5 - W * (0.20 + 0.18 * burst2), H * 0.788 - H * (0.030 + 0.026 * burst2),
+      rr(ctx, W * 0.5 - W * (0.20 + 0.18 * burst2), H * 0.775 - H * (0.030 + 0.026 * burst2),
         W * (0.40 + 0.36 * burst2), H * (0.060 + 0.052 * burst2), H * 0.030);
       ctx.stroke();
       ctx.restore();
     }
-    var v = spring(inv(t, 2.10, 2.80), 1.7);
-    if (v > 0.002) {
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, inv(t, 2.10, 2.36) * 1.5);
-      chip(ctx, W / 2, H * 0.788, 'ALL FIVE FREE', W * 0.036, C.mint, C.greenD, v);
-      ctx.restore();
-    }
     ctx.save();
-    wipeLabel(ctx, 'ONE HANDLE, EVERY PLATFORM', H * 0.868, W * 0.025, C.ink3,
-      W * 0.0080, inv(t, 3.20, 4.00), smooth(inv(t, 3.15, 3.50)) * 0.95);
+    wipeLabel(ctx, 'ONE NAME, EVERY PLATFORM', H * 0.860, W * 0.025, C.ink3,
+      W * 0.0080, inv(t, 2.20, 3.00), smooth(inv(t, 2.15, 2.50)) * 0.95);
     ctx.restore();
   }
 
-  /* the numbered step header shared by the three check beats */
-  function stepHead(ctx, t, idx, title) {
-    // present from the first frame — it slides and settles rather than fading in
-    badge(ctx, M + W * 0.052, H * 0.148, W * 0.048, CHECKS[idx].n, inv(t, -0.30, 0.34));
+  /* a headline that is present from the first frame of its beat */
+  function plainHead(ctx, t, title, hotWords, hot) {
+    var size = fitSize(ctx, title, CW - W * 0.04, W * 0.086, 0);
     ctx.save();
-    var size = fitSize(ctx, title, CW - W * 0.16, W * 0.088, 0);
-    setFont(ctx, '700', size);
-    ctx.fillStyle = C.ink;
-    ctx.fillText(title, M + W * 0.125 + (1 - easeOut(inv(t, 0, 0.42))) * W * 0.030,
-      H * 0.148 + size * 0.35);
+    riseWords(ctx, title, H * 0.180, size, inv(t, -0.16, 0.62), { hotWords: hotWords, hot: hot });
     ctx.restore();
-    // a thin progress rail showing which check we are on
     ctx.save();
-    var railY = H * 0.212, railW = CW, seg = railW / 3;
-    for (var i = 0; i < 3; i++) {
-      rr(ctx, M + i * seg + 4, railY, seg - 8, 6, 3);
-      ctx.fillStyle = i <= idx ? (i === idx ? C.orange : mix(C.orange, C.paper, 0.55)) : '#E4DFD7';
-      ctx.globalAlpha = i === idx ? smooth(inv(t, -0.10, 0.55)) : 1;
-      ctx.fill();
-      if (i === idx) shine(ctx, M + i * seg + 4, railY, seg - 8, 6, 3, t, 1.6, 0.85, 0.1);
-    }
+    var railY = H * 0.222, railW = W * 0.20;
+    rr(ctx, (W - railW) / 2, railY, railW, 6, 3);
+    ctx.fillStyle = mix(C.orange, C.paper, 0.35); ctx.fill();
+    shine(ctx, (W - railW) / 2, railY, railW, 6, 3, t, 1.6, 0.85, 0.1);
     ctx.restore();
   }
 
-  /* --- 5. THE SHORTCUT · 22–30 -------------------------------------------- */
-  var RESULTS = ['brewnorth.com', 'kindroast.com', 'ovalgrove.com'];
-  function sceneShortcut(ctx, t, dur) {
-    paper(ctx, t, [[C.peach, 0.24, 0.22, 0.68, 0.03, 0.05, 0.9],
-                   [C.mint, 0.80, 0.52, 0.60, 0.035, 0.042, 0.75],
-                   [C.lav, 0.40, 0.92, 0.64, 0.03, 0.035, 0.60]]);
-
-    riseWords(ctx, 'ZeroTaken does all three', H * 0.135, W * 0.072, inv(t, -0.16, 0.72),
-      { hotWords: [0] });
-
-    // the three checks dock into a row — they carry over from the beats before
-    for (var i = 0; i < 3; i++) {
-      var dp = spring(inv(t, -0.05 + i * 0.10, 0.62 + i * 0.10), 1.5);
-      if (dp <= 0.002) continue;
-      var w = CW / 3 - W * 0.016, x = M + i * (CW / 3) + W * 0.008;
-      var y = H * 0.195 + (1 - clamp(dp)) * H * 0.03;
-      var h = H * 0.062;
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, inv(t, -0.05 + i * 0.10, 0.20 + i * 0.10) * 1.5);
-      card(ctx, x, y, w, h, h * 0.34, 0.45, { fill: CHECKS[i].tint, border: false });
-      badge(ctx, x + h * 0.44, y + h / 2, h * 0.22, CHECKS[i].n, 1);
-      setFont(ctx, '700', W * 0.0245);
-      ctx.fillStyle = C.ink2;
-      ctx.fillText(['available', 'brandable', 'handle'][i], x + h * 0.80, y + h / 2 + W * 0.009);
-      ctx.restore();
-    }
-
-    // the search bar
-    var sp2 = spring(inv(t, 0.55, 1.30), 1.4);
-    var sy = H * 0.335, sh = H * 0.086;
-    if (sp2 > 0.002) {
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, inv(t, 0.55, 0.78) * 1.5);
-      var syh = sy + (1 - clamp(sp2)) * H * 0.03 + hover(t, 7, 0.004);
-      card(ctx, M, syh, CW, sh, sh / 2, 0.8 + 0.08 * osc(t, 0.36));
-      shine(ctx, M, syh, CW, sh, sh / 2, t, 2.0, 0.34);
-      var by = syh + sh / 2;
-      var q = 'eco coffee subscription';
-      var tp = inv(t, 1.30, 2.35);
-      var per = (2.35 - 1.30) / (q.length + 0.6);
-      var n = Math.floor(clamp(tp) * (q.length + 0.6));
-      var hold = clamp(1 - (t - (1.30 + n * per)) / 0.26);
-      setFont(ctx, '700', W * 0.040);
-      var r2 = typeOut(ctx, q, M + W * 0.055, by + W * 0.014, tp, W * 0.040, C.ink, C.orange, hold);
-      if (!r2.done && tp > 0.01) caret(ctx, r2.x, by + W * 0.014, W * 0.040, t, 0.9, C.orange);
-      // the search button
-      var bw = W * 0.10;
-      rr(ctx, M + CW - bw - sh * 0.16, by - (sh - sh * 0.32) / 2, bw, sh - sh * 0.32, (sh - sh * 0.32) / 2);
-      ctx.fillStyle = C.orange; ctx.fill();
-      ctx.save();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = W * 0.008; ctx.lineCap = 'round';
-      var mx = M + CW - bw / 2 - sh * 0.16, my = by;
-      ctx.beginPath(); ctx.arc(mx - W * 0.004, my - W * 0.004, W * 0.014, 0, TAU); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(mx + W * 0.006, my + W * 0.006); ctx.lineTo(mx + W * 0.017, my + W * 0.017); ctx.stroke();
-      ctx.restore();
-      ctx.restore();
-    }
-
-    // results, each already passing all three checks
-    for (var r = 0; r < 3; r++) {
-      var rp = spring(inv(t, 2.45 + r * 0.24, 3.15 + r * 0.24), 1.6);
-      if (rp <= 0.002) continue;
-      var ry = H * 0.475 + r * H * 0.105;
-      var rh = H * 0.088;
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, inv(t, 2.45 + r * 0.24, 2.70 + r * 0.24) * 1.5);
-      var lift = (1 - clamp(rp)) * H * 0.04;
-      var hv = hover(t, r + 3, 0.0055);
-      card(ctx, M, ry + lift + hv, CW, rh, rh * 0.30, 0.75 + 0.08 * osc(t, 0.33, r));
-      shine(ctx, M, ry + lift + hv, CW, rh, rh * 0.30, t, 2.2, 0.34, r * 0.28);
-      setFont(ctx, '700', W * 0.046);
-      ctx.fillStyle = C.ink;
-      ctx.fillText(RESULTS[r], M + W * 0.050, ry + lift + hv + rh * 0.62);
-      for (var k = 0; k < 3; k++) {
-        tickMark(ctx, M + CW - W * 0.055 - k * W * 0.062, ry + lift + hv + rh / 2, W * 0.021,
-          inv(t, 2.80 + r * 0.24 + (2 - k) * 0.09, 3.06 + r * 0.24 + (2 - k) * 0.09),
-          null, Math.sin(t * 2.2 + r * 1.1 + k * 0.7));
-      }
-      ctx.restore();
-    }
-    var burst = inv(t, 3.90, 5.00);
-    if (burst > 0 && burst < 1) confetti(ctx, W / 2, H * 0.56, burst, W * 0.62);
-
-    ctx.save();
-    wipeLabel(ctx, 'AI DOMAIN NAME GENERATOR  ·  LIVE AVAILABILITY', H * 0.845, W * 0.025, C.ink3,
-      W * 0.0075, inv(t, 4.40, 5.40), smooth(inv(t, 4.35, 4.75)) * 0.95);
-    ctx.restore();
-  }
-
-  /* --- 6. CLOSE · 30–36 --------------------------------------------------- */
+  /* --- 7. CLOSE · 28–34 --------------------------------------------------- */
   function sceneClose(ctx, t, dur) {
     paper(ctx, t, [[C.peach, 0.28, 0.30, 0.72, 0.035, 0.05, 1.0],
                    [C.mint, 0.76, 0.66, 0.62, 0.035, 0.041, 0.8],
                    [C.sky, 0.40, 0.94, 0.62, 0.03, 0.034, 0.5]]);
 
-    // the three result cards collapse into the mark
     var gather = easeIn(inv(t, 0.00, 0.80));
     for (var r = 0; r < 3; r++) {
       if (gather >= 0.999) break;
-      var ry = lerp(H * 0.475 + r * H * 0.105, H * 0.40, gather);
-      var sc = lerp(1, 0.22, gather);
-      var rh = H * 0.088;
+      var ry = lerp(H * 0.470 + r * H * 0.105, H * 0.40, gather);
+      var sc = lerp(1, 0.22, gather), rh = H * 0.088;
       ctx.save();
       ctx.globalAlpha = 1 - smooth(inv(gather, 0.55, 1));
       ctx.translate(W / 2, ry + rh / 2); ctx.scale(sc, sc); ctx.translate(-W / 2, -(ry + rh / 2));
       card(ctx, M, ry, CW, rh, rh * 0.30, 0.7);
       setFont(ctx, '700', W * 0.046);
       ctx.fillStyle = C.ink;
-      ctx.fillText(RESULTS[r], M + W * 0.050, ry + rh * 0.62);
-      for (var k = 0; k < 3; k++) {
-        tickMark(ctx, M + CW - W * 0.055 - k * W * 0.062, ry + rh / 2, W * 0.021, 1,
-          null, Math.sin(t * 2.2 + r * 1.1 + k * 0.7));
-      }
+      ctx.fillText(GOOD[r], M + W * 0.050, ry + rh * 0.62);
+      setFont(ctx, '700', W * 0.026);
+      var lbl = 'available · $12';
+      var lw = ctx.measureText(lbl).width, bw3 = lw + W * 0.050, bh3 = rh * 0.52;
+      ctx.save();
+      ctx.translate(M + CW - W * 0.048 - bw3 / 2, ry + rh / 2);
+      rr(ctx, -bw3 / 2, -bh3 / 2, bw3, bh3, bh3 / 2);
+      ctx.fillStyle = C.mint; ctx.fill();
+      ctx.fillStyle = C.greenD;
+      ctx.fillText(lbl, -lw / 2, W * 0.009);
+      ctx.restore();
       ctx.restore();
     }
 
     var SNAP = 0.92;
-    var snapped = t >= SNAP;
-    // the three checks come with it
-    for (var i = 0; i < 3; i++) {
-      var dp = spring(inv(t, 1.30 + i * 0.10, 1.95 + i * 0.10), 1.5);
-      if (dp <= 0.002) continue;
-      var w = CW / 3 - W * 0.016, x = M + i * (CW / 3) + W * 0.008;
-      var y = H * 0.175 + (1 - clamp(dp)) * H * 0.025 + hover(t, i, 0.004), h = H * 0.062;
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, inv(t, 1.30 + i * 0.10, 1.55 + i * 0.10) * 1.5);
-      card(ctx, x, y, w, h, h * 0.34, 0.45, { fill: CHECKS[i].tint, border: false });
-      shine(ctx, x, y, w, h, h * 0.34, t, 2.1, 0.40, i * 0.26);
-      badge(ctx, x + h * 0.44, y + h / 2, h * 0.22, CHECKS[i].n, 1);
-      setFont(ctx, '700', W * 0.0245);
-      ctx.fillStyle = C.ink2;
-      ctx.fillText(['available', 'brandable', 'handle'][i], x + h * 0.80, y + h / 2 + W * 0.009);
-      ctx.restore();
-    }
-    if (snapped) {
-      var lsw = 1 + 0.016 * osc(t, 0.55);
-      var s1 = W * 0.155 * lsw;
-      lockup(ctx, W / 2, H * 0.415 + hover(t, 9, 0.0035), s1, { swoosh: smooth(inv(t, 1.05, 1.62)), reserveSwoosh: true });
-
+    if (t >= SNAP) {
+      var s1 = W * 0.155 * (1 + 0.016 * osc(t, 0.55));
+      lockup(ctx, W / 2, H * 0.395 + hover(t, 9, 0.0035), s1,
+        { swoosh: smooth(inv(t, 1.05, 1.62)), reserveSwoosh: true });
       var ba = inv(t, SNAP, SNAP + 0.95);
-      if (ba > 0 && ba < 1) confetti(ctx, W / 2, H * 0.42, ba, W * 0.60);
+      if (ba > 0 && ba < 1) confetti(ctx, W / 2, H * 0.40, ba, W * 0.60);
 
       var ua = smooth(inv(t, 1.75, 2.15));
       if (ua > 0.01) {
@@ -912,7 +1027,7 @@
         var url = 'zerotaken.com';
         var uw = trackW(ctx, url, W * 0.006);
         ctx.fillStyle = C.ink;
-        trackFill(ctx, url, (W - uw) / 2, H * 0.600, W * 0.006);
+        trackFill(ctx, url, (W - uw) / 2, H * 0.582, W * 0.006);
         ctx.restore();
       }
 
@@ -921,7 +1036,7 @@
         ctx.save();
         ctx.globalAlpha = Math.min(1, inv(t, 2.30, 2.56) * 1.5);
         var bw = W * 0.56, bh = H * 0.070;
-        var bx = (W - bw) / 2, by2 = H * 0.672 + (1 - clamp(ca)) * H * 0.02;
+        var bx = (W - bw) / 2, by2 = H * 0.660 + (1 - clamp(ca)) * H * 0.02;
         ctx.save();
         ctx.translate(W / 2, by2 + bh / 2); ctx.scale(ca, ca); ctx.translate(-W / 2, -(by2 + bh / 2));
         ctx.shadowColor = hexa(C.orange, 0.42); ctx.shadowBlur = H * 0.030; ctx.shadowOffsetY = H * 0.012;
@@ -931,17 +1046,16 @@
         ctx.fillStyle = g2; ctx.fill();
         ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
         setFont(ctx, '700', W * 0.034);
-        var lbl = 'Free to search';
-        var lw2 = ctx.measureText(lbl).width;
+        var lbl2 = 'Free to search';
+        var lw2 = ctx.measureText(lbl2).width;
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(lbl, W / 2 - lw2 / 2, by2 + bh * 0.63);
-        // a shine crossing the button on a loop
-        var q = ((t - 2.30) % 2.0) / 2.0;
-        if (q < 0.40) {
+        ctx.fillText(lbl2, W / 2 - lw2 / 2, by2 + bh * 0.63);
+        var q2 = ((t - 2.30) % 2.0) / 2.0;
+        if (q2 < 0.40) {
           ctx.save();
           rr(ctx, bx, by2, bw, bh, bh / 2); ctx.clip();
-          ctx.globalAlpha = 0.45 * Math.sin(q / 0.40 * Math.PI);
-          var sx = lerp(bx - bw * 0.3, bx + bw * 1.3, q / 0.40);
+          ctx.globalAlpha = 0.45 * Math.sin(q2 / 0.40 * Math.PI);
+          var sx = lerp(bx - bw * 0.3, bx + bw * 1.3, q2 / 0.40);
           var sg = ctx.createLinearGradient(sx - bw * 0.16, 0, sx + bw * 0.16, 0);
           sg.addColorStop(0, 'rgba(255,255,255,0)');
           sg.addColorStop(0.5, 'rgba(255,255,255,0.85)');
@@ -956,8 +1070,8 @@
       var fa = smooth(inv(t, 3.20, 3.60));
       if (fa > 0.01) {
         ctx.save();
-        wipeLabel(ctx, 'CHECKED BEFORE YOU EVER SEE IT', H * 0.800, W * 0.026, C.ink3,
-          W * 0.0085, inv(t, 3.20, 4.05), fa * 0.95);
+        wipeLabel(ctx, 'NEVER SHOWS YOU A NAME YOU CANNOT HAVE', H * 0.775, W * 0.026, C.ink3,
+          W * 0.0075, inv(t, 3.20, 4.05), fa * 0.95);
         ctx.restore();
       }
     }
@@ -966,20 +1080,20 @@
   /* ============================ TIMELINE ============================== */
   function cam(s0, s1, dy0, dy1, dx0, dx1) {
     return function (t, dur) {
-      var e = easeOut(inv(t, 0, dur));
-      var q = inv(t, 0, dur);                    // a slow linear drift on top
+      var e = easeOut(inv(t, 0, dur)), q = inv(t, 0, dur);
       return { s: lerp(s0, s1, e) * (1 + 0.012 * q),
                dx: lerp(dx0 || 0, dx1 || 0, q) * W,
                dy: lerp(dy0, dy1, e) * H };
     };
   }
   var TIMELINE = [
-    { name: 'hook', end: 4.0, fn: sceneHook, cam: cam(1.00, 1.075, 0, -0.010, 0, 0.006) },
-    { name: 'check1', end: 10.0, fn: sceneCheck1, cam: cam(1.10, 1.00, -0.008, 0.006, 0.008, -0.008) },
-    { name: 'check2', end: 16.0, fn: sceneCheck2, cam: cam(1.00, 1.085, 0.008, -0.008, -0.008, 0.008) },
-    { name: 'check3', end: 22.0, fn: sceneCheck3, cam: cam(1.10, 1.00, -0.008, 0.006, 0.008, -0.008) },
-    { name: 'shortcut', end: 30.0, fn: sceneShortcut, cam: cam(1.00, 1.075, 0.008, -0.008, -0.006, 0.006) },
-    { name: 'close', end: 36.0, fn: sceneClose, cam: cam(1.09, 1.00, -0.006, 0.004, 0.005, -0.005) }
+    { name: 'pain1', end: 4.0, fn: sceneFeed, cam: cam(1.00, 1.075, 0, -0.010, 0, 0.006) },
+    { name: 'pain2', end: 8.0, fn: sceneAI, cam: cam(1.09, 1.00, -0.008, 0.006, 0.008, -0.008) },
+    { name: 'fix', end: 14.0, fn: sceneFix, cam: cam(1.00, 1.075, 0.008, -0.008, -0.006, 0.006) },
+    { name: 'price', end: 20.0, fn: scenePrice, cam: cam(1.09, 1.00, -0.008, 0.006, 0.008, -0.008) },
+    { name: 'score', end: 24.0, fn: sceneScore, cam: cam(1.00, 1.075, 0.008, -0.008, -0.008, 0.008) },
+    { name: 'handles', end: 28.0, fn: sceneHandles, cam: cam(1.09, 1.00, -0.008, 0.006, 0.008, -0.008) },
+    { name: 'close', end: 34.0, fn: sceneClose, cam: cam(1.09, 1.00, -0.006, 0.004, 0.005, -0.005) }
   ];
   var DUR = TIMELINE[TIMELINE.length - 1].end;
 

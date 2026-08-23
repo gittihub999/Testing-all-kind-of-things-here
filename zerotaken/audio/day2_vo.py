@@ -1,28 +1,33 @@
 """Day 2 voiceover.
 
-Different voice from day 1 (af_heart), still female. As on day 1 the question
-lines are checked for terminal pitch rise, because most phrasings make this
-class of model fall at the end and read as a statement.
+bf_emma — British female, and naturally quick, so it runs at 0.88 rather than
+being stretched hard the way earlier cuts were. Heavy time-stretching is what
+made those reads sound synthetic.
+
+The film opens on pain-point questions, so both opening lines are checked for
+terminal pitch rise; a trailing tag is what reliably makes this class of model
+lift at the end instead of falling.
 """
 import numpy as np, wave, os
 from kokoro_onnx import Kokoro
 
 SR = 48000
-DUR = 36.0
-VOICE = os.environ.get('VO_VOICE', 'af_bella')
-SPEED = float(os.environ.get('VO_SPEED', '0.74'))
+DUR = 34.0
+VOICE = os.environ.get('VO_VOICE', 'bf_emma')
+SPEED = float(os.environ.get('VO_SPEED', '0.82'))
 OUT = os.path.dirname(os.path.abspath(__file__))
 kok = Kokoro('/tmp/kokoro/kokoro-v1.0.onnx', '/tmp/kokoro/voices-v1.0.bin')
 
 LINES = [
-    (0.62,  ["Found a domain you like?"]),
-    (4.32,  ["One. Available at the real price.", 0.26, "Not the aftermarket ask."]),
-    (10.55, ["Two. Memorable, right?", 0.30, "Short, sayable, spellable."]),
-    (16.55, ["Three. Is the handle free everywhere?"]),
-    (22.60, ["ZeroTaken checks all three.", 0.36, "Before it ever shows you a name."]),
-    (30.65, ["ZeroTaken dot com.", 0.36, "Free to search."]),
+    (0.55,  ["Everything you type is taken, right?"]),
+    (4.35,  ["The AI ones were taken too, right?"]),
+    (8.55,  ["ZeroTaken only shows names you can register.", 0.30, "Checked live."]),
+    (14.45, ["At the real price.", 0.30, "Not two thousand dollars."]),
+    (20.45, ["Scored for brandability."]),
+    (24.45, ["And the handle, on every platform."]),
+    (28.65, ["ZeroTaken dot com.", 0.35, "Free to search."]),
 ]
-BEAT_END = [4.0, 10.0, 16.0, 22.0, 30.0, 36.0]
+BEAT_END = [4.0, 8.0, 14.0, 20.0, 24.0, 28.0, 34.0]
 
 def synth(text):
     a, sr = kok.create(text, voice=VOICE, speed=SPEED,

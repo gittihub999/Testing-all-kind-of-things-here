@@ -7,9 +7,20 @@ gets re-posted. Every film is 9:16, 1080×1920, 30fps, H.264 + AAC, mastered to
 | day | film | look | angle | length |
 |---|---|---|---|---|
 | 1 | `zerotaken-day1-dark.mp4` · `.html` | dark neon, glass and light | problem → premium trap → product | 46.0s |
-| 2 | `zerotaken-day2-light.mp4` · `.html` | bright paper, cards and shadow | "3 checks before you buy" listicle | 36.0s |
+| 2 | `zerotaken-day2-light.mp4` · `.html` | bright paper, cards and shadow | "Everything taken?" — pain first, then the fix | 34.0s |
 
 SEO packs: `SEO.md` (day 1), `SEO-day2.md` (day 2).
+
+### Series rules
+
+- **Every film opens on pain-point questions.** Two of them, one per scene,
+  before the product is mentioned at all.
+- **The opening scene carries content, not a title card.** A feed of real
+  domain names being rejected, not a headline over empty space.
+- Nothing repeats between days: script, look, voice and score are all new.
+- Voice: pick one that is close to the target pace unstretched. Heavy
+  time-stretching is what makes a read sound synthetic, so speed stays above
+  ~0.80. Question lines are measured for terminal pitch rise at build time.
 
 ## Building any day
 
@@ -37,38 +48,43 @@ straddles a cut.
 
 ---
 
-## Day 2 — "3 checks before you buy" (bright)
+## Day 2 — "Everything taken?" (bright)
 
 A deliberately light film rather than a recolour of the dark one. The dark
 house style makes light the subject; here the subject is paper and shadow.
 Depth comes from elevation, colour from soft washes and flat brand tints, and
 the motion is springy the way light product UI is.
 
+It opens the way day 1 does — on the pain, with a feed of names the viewer has
+already burned through, each one stamped TAKEN as it scrolls past — but in the
+bright system, with white cards and red stamps instead of neon strikes.
+
 ```
- 0– 4  HOOK      the three checks stack up          "3 checks before you buy"
- 4–10  CHECK 1   registrar price vs aftermarket     "Really available?"
-10–16  CHECK 2   brandability dial to 92            "Worth remembering?"
-16–22  CHECK 3   five platform handles tick green   "Handle free?"
-22–30  SHORTCUT  the checks dock, results land      "ZeroTaken does all three"
-30–36  CLOSE     results collapse into the logo     "zerotaken.com"
+ 0– 4  PAIN 1    a feed of names, each stamped TAKEN   "Everything taken?"
+ 4– 8  PAIN 2    the AI generator's names, also gone   "Even the AI ones?"
+ 8–14  THE FIX   brand, then results that are free     "Only what you can register"
+14–20  PRICE     $12 registrar vs $2,450 aftermarket   "At the real price"
+20–24  SCORE     brandability dial to 92               "Scored before you buy"
+24–28  HANDLE    five platforms tick free              "And the handle"
+28–34  CLOSE     results collapse into the logo        "zerotaken.com"
 ```
 
 Palette: warm paper `#F5F3EF`, white cards, ink `#191512`, ZeroTaken orange
 `#EF7908`, green `#2E9E33`, red `#E0364F`, and peach / mint / lavender / sky
-tints. Cuts on the 120 BPM bar grid, so the score locks to the edit.
+tints. Cuts on the 120 BPM bar grid.
 
-**Voice:** Kokoro-82M `af_bella`, speed 0.74 — 114 wpm, dry. All three question
-lines are checked for terminal pitch rise at build time:
+**Voice:** Kokoro-82M `bf_emma` (British female), speed 0.82 — 129 wpm, dry,
+and only an 18% stretch. Both opening pain questions are measured for terminal
+pitch rise at build time:
 
 ```
-Found a domain you like?                +2.9 st   rises
-Two. Memorable, right?                  +2.0 st   rises
-Three. Is the handle free everywhere?   +3.9 st   rises
+Everything you type is taken, right?   +9.3 st   rises
+The AI ones were taken too, right?     +3.5 st   rises
 ```
 
-**Score:** C major (C–G–Am–F), marimba plucks, bells, shakers and claps —
-brighter than day 1's A-minor synthwave. One continuous piece; transitions
-live in the SFX layer.
+**Score:** C major (C–G–Am–F), marimba plucks, bells, shakers and claps. The
+arrangement is sparse under the two pain beats and opens up at the brand
+reveal, so the turn in the script is a turn in the music too.
 
 ---
 

@@ -1,4 +1,4 @@
-# ZeroTaken day 2 — "3 checks before you buy"
+# ZeroTaken day 2 — "Everything taken?"
 
 A different angle from day 1 so the two can run in the same week without
 repeating: day 1 is a problem/solution brand film, day 2 is an educational
@@ -6,31 +6,31 @@ listicle. Listicles index well and are easy to clip.
 
 ## Title options
 
-1. `3 Checks Before You Buy Any Domain Name`
-2. `Don't Buy That Domain Until You Check These 3 Things`
-3. `Why "Available" Domains Cost $2,450 — And How To Avoid It`
-4. `How To Check A Domain Name Properly (3 Steps)`
+1. `Everything You Type Is Taken — Here's Why`
+2. `Your AI Domain Generator Is Showing You Names You Can't Buy`
+3. `Why Every Good .com Looks Taken (And What To Do)`
+4. `Stop Searching Domains That Are Already Gone`
 
 ## Description
 
-> Before you buy a domain name, check three things. One: is it actually
-> available at standard registrar pricing, or is it an aftermarket listing at
-> $2,450? Two: is it worth remembering — short, sayable, spellable? Three: is
-> the handle free on YouTube, Instagram, TikTok, Facebook and Pinterest?
+> Everything you type is taken. And the names your AI generator hands you?
+> Half of them are registered already, and the rest are aftermarket listings
+> at $2,450.
 >
-> ZeroTaken runs all three checks before it ever shows you a name. Describe
-> your idea, and the AI domain name generator writes brandable names and
-> verifies availability live against the registry across .com, .io, .ai and
-> 240+ extensions — no caching, no broker markups.
+> ZeroTaken only shows domain names you can actually register, at standard
+> registrar pricing. Describe your idea and the AI domain name generator
+> writes brandable names, checks availability live against the registry, scores
+> each one for brandability, and tells you whether the handle is free on
+> YouTube, Instagram, TikTok, Facebook and Pinterest.
 >
 > Free to search at https://zerotaken.com
 
 ## Tags
 
-`domain name tips`, `how to buy a domain`, `domain checklist`, `ai domain name
-generator`, `available domain names`, `domain availability checker`, `premium
-domain`, `aftermarket domain`, `brandable domain names`, `startup naming`,
-`social handle checker`, `zerotaken`
+`domain name search`, `ai domain name generator`, `available domain names`,
+`domain availability checker`, `every domain is taken`, `premium domain`,
+`aftermarket domain`, `brandable domain names`, `startup naming`, `business
+name generator`, `social handle checker`, `zerotaken`
 
 ## Hashtags
 
@@ -39,31 +39,34 @@ domain`, `aftermarket domain`, `brandable domain names`, `startup naming`,
 
 ## Transcript
 
-Read by Kokoro-82M `af_bella` at 114 wpm.
+Read by Kokoro-82M `bf_emma` at 129 wpm.
 
 ```
-0:00  Found a domain you like?
-0:04  One. Available at the real price. Not the aftermarket ask.
-0:10  Two. Memorable, right? Short, sayable, spellable.
-0:16  Three. Is the handle free everywhere?
-0:22  ZeroTaken checks all three. Before it ever shows you a name.
-0:30  ZeroTaken dot com. Free to search.
+0:00  Everything you type is taken, right?
+0:04  The AI ones were taken too, right?
+0:08  ZeroTaken only shows names you can register. Checked live.
+0:14  At the real price. Not two thousand dollars.
+0:20  Scored for brandability.
+0:24  And the handle, on every platform.
+0:28  ZeroTaken dot com. Free to search.
 ```
 
 ## On-screen text, in order
 
 ```
-3 checks · before you buy a domain
-  1 Really available?  2 Worth remembering?  3 Handle free?
-1 · Really available?   northstar.com · Standard registrar $12 ✓ · Aftermarket ask $2,450 ✕
-    MOST "AVAILABLE" NAMES ARE LISTINGS · CHECK THE REAL PRICE, NOT THE BADGE
-2 · Worth remembering?  92 EXCELLENT · Short / Sayable / Memorable
-    CANNOT SPELL IT? CANNOT FIND YOU. · EVERY NAME SCORED FOR BRANDABILITY
-3 · Handle free?        @northstar · YouTube / Instagram / TikTok / Facebook / Pinterest
-    ALL FIVE FREE · ONE HANDLE, EVERY PLATFORM
-ZeroTaken does all three · eco coffee subscription → 3 results, 3 ticks each
-    AI DOMAIN NAME GENERATOR · LIVE AVAILABILITY
-ZEROtaken · zerotaken.com · Free to search · CHECKED BEFORE YOU EVER SEE IT
+Everything taken?   · 137 names tried · a feed of names stamped TAKEN
+                    · SEARCH · TAKEN · REPEAT
+Even the AI ones?   · AI NAME GENERATOR → TAKEN / $2,450 / TAKEN
+                    · GENERATED, THEN GONE · THREE OF THREE, ALREADY REGISTERED
+ZEROtaken · Only what you can register · eco coffee subscription
+                    → 3 results, each "available · $12"
+                    · AI DOMAIN NAME GENERATOR · LIVE AVAILABILITY
+At the real price   · Standard registrar $12 ✓ · Aftermarket ask $2,450 ✕
+                    · NO BROKER MARKUP · PARKED, PREMIUM AND AFTERMARKET FILTERED OUT
+Scored before you buy · 92 EXCELLENT · Short / Sayable / Memorable
+                    · LENGTH · PRONOUNCEABILITY · MEMORABILITY
+And the handle      · @brewnorth · five platforms, all free · ALL FIVE FREE
+ZEROtaken · zerotaken.com · Free to search · NEVER SHOWS YOU A NAME YOU CANNOT HAVE
 ```
 
 ## Claim sourcing
