@@ -7,7 +7,7 @@ gets re-posted. Every film is 9:16, 1080×1920, 30fps, H.264 + AAC, mastered to
 | day | film | look | angle | length |
 |---|---|---|---|---|
 | 1 | `zerotaken-day1-dark.mp4` · `.html` | dark neon, glass and light | problem → premium trap → product | 46.0s |
-| 2 | `zerotaken-day2-light.mp4` · `.html` | bright paper, cards and shadow | "Everything taken?" — pain first, then the fix | 34.0s |
+| 2 | `zerotaken-day2-light.mp4` · `.html` | bright paper, cards, shadow and floating glyph tiles | "Everything taken?" — pain first, then the fix | 36.0s |
 
 SEO packs: `SEO.md` (day 1), `SEO-day2.md` (day 2).
 
@@ -59,32 +59,50 @@ It opens the way day 1 does — on the pain, with a feed of names the viewer has
 already burned through, each one stamped TAKEN as it scrolls past — but in the
 bright system, with white cards and red stamps instead of neon strikes.
 
+It also carries day 1's floating-tile motion language, re-lit for a bright
+palette: white squircles holding vector glyphs (check, globe, star, at, search)
+drift up behind every beat, each with a *coloured* shadow doing the job the neon
+halo did on black. The tiles are the film's working material — the extension
+beat expands eight of them into a rotating ring that ticks green one by one, the
+handle beat lays five out as platform tiles, and the close pulls them into a
+spiral that the logo absorbs. `floatingIcons()` biases them away from the centre
+column so they never fight the copy.
+
 ```
  0– 4  PAIN 1    a feed of names, each stamped TAKEN   "Everything taken?"
  4– 8  PAIN 2    the AI generator's names, also gone   "Even the AI ones?"
  8–14  THE FIX   brand, then results that are free     "Only what you can register"
-14–20  PRICE     $12 registrar vs $2,450 aftermarket   "At the real price"
-20–24  SCORE     brandability dial to 92               "Scored before you buy"
-24–28  HANDLE    five platforms tick free              "And the handle"
-28–34  CLOSE     results collapse into the logo        "zerotaken.com"
+14–20  RING      8 TLD tiles expand, rotate, tick free "Every extension, live"
+20–26  PRICE     $12 vs $2,450, plus a 92 score tile   "At the real price"
+26–30  HANDLE    five platform tiles tick free         "And the handle"
+30–36  CLOSE     tiles spiral in, the logo absorbs them "zerotaken.com"
 ```
 
 Palette: warm paper `#F5F3EF`, white cards, ink `#191512`, ZeroTaken orange
 `#EF7908`, green `#2E9E33`, red `#E0364F`, and peach / mint / lavender / sky
 tints. Cuts on the 120 BPM bar grid.
 
-**Voice:** Kokoro-82M `bf_emma` (British female), speed 0.82 — 129 wpm, dry,
-and only an 18% stretch. Both opening pain questions are measured for terminal
-pitch rise at build time:
+**Voice:** Kokoro-82M `af_nicole` (American female), speed **1.00 — no
+stretching at all**. Time-stretching is what makes a synthetic read sound
+robotic, so the copy was written to the beat instead of the beat being warped to
+the copy: 47 words, 23.5s of speech in 36s, 120 wpm while speaking, and every
+line lands with at least 0.84s of slack before its cut. Dry — no reverb, no
+saturation. Both opening pain questions are measured for terminal pitch rise at
+build time:
 
 ```
-Everything you type is taken, right?   +9.3 st   rises
-The AI ones were taken too, right?     +3.5 st   rises
+Everything you type is taken, right?    +6.6 st   rises
+Even the AI ones were gone, right?     +12.3 st   rises
 ```
 
 **Score:** C major (C–G–Am–F), marimba plucks, bells, shakers and claps. The
 arrangement is sparse under the two pain beats and opens up at the brand
-reveal, so the turn in the script is a turn in the music too.
+reveal, so the turn in the script is a turn in the music too. One continuous
+bed across all seven beats — transitions live on the SFX layer, never as cuts
+in the music.
+
+Day-2 stems, if you want to remix: `day2_stem_music.m4a`, `day2_stem_sfx.m4a`,
+`day2_stem_vo.m4a`, `day2_stem_mix.m4a`.
 
 ---
 

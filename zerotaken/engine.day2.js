@@ -1,6 +1,6 @@
 /* ============================================================================
    ZEROTAKEN — day 2  ·  "Everything taken?"
-   9:16 · 1080x1920 · 30fps · 34.0s
+   9:16 · 1080x1920 · 30fps · 36.0s
    ----------------------------------------------------------------------------
    A deliberately BRIGHT film, not a recolour of the dark one. The dark house
    style makes light the subject; here the subject is paper and shadow. Depth
@@ -440,6 +440,138 @@
     return { left: left, block: block, top: yZ - s, bottom: yT };
   }
 
+
+  /* ---------------------------------------------------------------------
+     Floating icon tiles — the motion language from the dark film, rebuilt
+     for light: a white squircle with a COLOURED shadow standing in for the
+     neon halo, a tinted wash inside, and a coloured symbol.
+     --------------------------------------------------------------------- */
+  function gCheck(ctx, s, col) {
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = col; ctx.lineWidth = s * 0.20;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.44, s * 0.02); ctx.lineTo(-s * 0.12, s * 0.34); ctx.lineTo(s * 0.46, -s * 0.34);
+    ctx.stroke(); ctx.restore();
+  }
+  function gGlobe(ctx, s, col) {
+    ctx.save();
+    ctx.strokeStyle = col; ctx.lineWidth = s * 0.11;
+    ctx.beginPath(); ctx.arc(0, 0, s * 0.46, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 0, s * 0.20, s * 0.46, 0, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-s * 0.46, 0); ctx.lineTo(s * 0.46, 0); ctx.stroke();
+    ctx.restore();
+  }
+  function gTag(ctx, s, col) {
+    ctx.save();
+    ctx.strokeStyle = col; ctx.lineWidth = s * 0.11; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.08, -s * 0.44); ctx.lineTo(s * 0.44, -s * 0.44);
+    ctx.lineTo(s * 0.44, s * 0.08); ctx.lineTo(-s * 0.06, s * 0.46);
+    ctx.lineTo(-s * 0.46, s * 0.06); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(s * 0.22, -s * 0.22, s * 0.08, 0, TAU);
+    ctx.fillStyle = col; ctx.fill();
+    ctx.restore();
+  }
+  function gStar(ctx, s, col) {
+    ctx.save();
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(0, -s * 0.50);
+    ctx.quadraticCurveTo(s * 0.10, -s * 0.10, s * 0.50, 0);
+    ctx.quadraticCurveTo(s * 0.10, s * 0.10, 0, s * 0.50);
+    ctx.quadraticCurveTo(-s * 0.10, s * 0.10, -s * 0.50, 0);
+    ctx.quadraticCurveTo(-s * 0.10, -s * 0.10, 0, -s * 0.50);
+    ctx.fill(); ctx.restore();
+  }
+  function gAt(ctx, s, col) {
+    ctx.save();
+    setFont(ctx, '700', s * 1.10);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = col; ctx.fillText('@', 0, s * 0.02);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
+  function gLock(ctx, s, col) {
+    ctx.save();
+    ctx.strokeStyle = col; ctx.lineWidth = s * 0.11; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, -s * 0.14, s * 0.24, Math.PI, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-s * 0.24, -s * 0.14); ctx.lineTo(-s * 0.24, s * 0.02);
+    ctx.moveTo(s * 0.24, -s * 0.14); ctx.lineTo(s * 0.24, s * 0.02); ctx.stroke();
+    rr(ctx, -s * 0.40, s * 0.00, s * 0.80, s * 0.46, s * 0.12);
+    ctx.fillStyle = col; ctx.fill();
+    ctx.restore();
+  }
+  function gSearch(ctx, s, col) {
+    ctx.save();
+    ctx.strokeStyle = col; ctx.lineWidth = s * 0.12; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(-s * 0.08, -s * 0.08, s * 0.30, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(s * 0.14, s * 0.14); ctx.lineTo(s * 0.42, s * 0.42); ctx.stroke();
+    ctx.restore();
+  }
+  function gText(txt) {
+    return function (ctx, s, col) {
+      ctx.save();
+      setFont(ctx, '700', s * 0.62);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = col; ctx.fillText(txt, 0, 0);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      ctx.restore();
+    };
+  }
+  var GLYPHS = [gCheck, gGlobe, gStar, gAt, gSearch, gCheck, gStar];
+
+  function iconTile(ctx, o) {
+    var s = o.size, h = s / 2, r = s * 0.30;
+    var a = o.alpha === undefined ? 1 : o.alpha;
+    if (a <= 0.004 || s <= 1) return;
+    ctx.save();
+    ctx.globalAlpha = ctx.globalAlpha * a;
+    ctx.translate(o.x, o.y);
+    if (o.rot) ctx.rotate(o.rot);
+    // the coloured shadow is what the neon halo becomes on paper
+    ctx.shadowColor = hexa(o.hue, 0.40 * (o.elev === undefined ? 1 : o.elev));
+    ctx.shadowBlur = s * 0.46; ctx.shadowOffsetY = s * 0.15;
+    rr(ctx, -h, -h, s, s, r);
+    ctx.fillStyle = C.card; ctx.fill();
+    ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.save();
+    rr(ctx, -h, -h, s, s, r); ctx.clip();
+    wash(ctx, -h * 0.32, -h * 0.32, s * 0.92, s * 0.92, o.tint || o.hue, 0.85);
+    ctx.restore();
+    rr(ctx, -h + 1, -h + 1, s - 2, s - 2, r);
+    ctx.lineWidth = 1.6; ctx.strokeStyle = C.line; ctx.stroke();
+    if (o.symbol) o.symbol(ctx, s * 0.46, o.hue);
+    if (o.badge > 0.001) tickMark(ctx, h * 0.66, -h * 0.66, s * 0.17, o.badge, null, o.pulse || 0);
+    ctx.restore();
+  }
+
+  /* a drift of small icon tiles behind everything, with parallax */
+  var ICONS = (function () {
+    var r = rng(80531), a = [];
+    for (var i = 0; i < 8; i++) {
+      a.push({ x: r(), y: r(), z: 0.35 + 0.65 * r(), sp: 0.022 + 0.035 * r(),
+               ph: r() * TAU, spin: (r() - 0.5) * 0.45, g: (r() * 7) | 0, c: (r() * 5) | 0 });
+    }
+    return a;
+  })();
+  function floatingIcons(ctx, t, amt) {
+    if (amt <= 0.002) return;
+    var hues = [C.orange, C.green, '#7A5BFF', '#2F8BD6', C.gold];
+    var tints = [C.peach, C.mint, C.lav, C.sky, C.peach];
+    for (var i = 0; i < ICONS.length; i++) {
+      var f = ICONS[i];
+      var y = ((f.y - t * f.sp * f.z) % 1 + 1) % 1;
+      var xr = f.x < 0.5 ? f.x * 0.34 : 0.66 + (f.x - 0.5) * 0.68;
+      var x = xr + Math.sin(t * 0.22 + f.ph) * 0.040 * f.z;
+      iconTile(ctx, {
+        x: x * W, y: y * H, size: W * (0.062 + 0.078 * f.z),
+        rot: f.spin * t + f.ph, alpha: amt * (0.52 + 0.40 * f.z),
+        hue: hues[f.c], tint: tints[f.c], symbol: GLYPHS[f.g], elev: 0.80 * f.z
+      });
+    }
+  }
+
   /* ============================== SCENES ==============================
      Opens on the pain, the way the dark film does: a feed of names the
      viewer has already tried, each one stamped TAKEN as it goes past. */
@@ -533,6 +665,7 @@
     paper(ctx, t, [[C.rose, 0.24, 0.24, 0.66, 0.03, 0.05, 0.85],
                    [C.peach, 0.80, 0.58, 0.60, 0.035, 0.042, 0.70],
                    [C.sky, 0.44, 0.94, 0.62, 0.03, 0.034, 0.45]]);
+    floatingIcons(ctx, t, 1.0);
 
     feed(ctx, t, {
       scroll: 1.2 + t * 0.78, focusY: H * 0.585, step: H * 0.098,
@@ -563,6 +696,7 @@
     paper(ctx, t, [[C.rose, 0.26, 0.26, 0.68, 0.03, 0.049, 0.90],
                    [C.lav, 0.78, 0.60, 0.58, 0.035, 0.041, 0.65],
                    [C.peach, 0.42, 0.94, 0.60, 0.03, 0.033, 0.50]]);
+    floatingIcons(ctx, t, 1.0);
 
     riseWords(ctx, 'Even the AI ones?', H * 0.148, W * 0.100, inv(t, -0.16, 0.64),
       { hotWords: [2], hot: C.red });
@@ -648,6 +782,7 @@
     paper(ctx, t, [[C.peach, 0.26, 0.24, 0.70, 0.03, 0.05, 0.95],
                    [C.mint, 0.78, 0.56, 0.62, 0.035, 0.042, 0.80],
                    [C.sky, 0.42, 0.94, 0.62, 0.03, 0.034, 0.55]]);
+    floatingIcons(ctx, t, 1.0);
 
     // the brand lands, then makes room for the product
     var shrink = smooth(inv(t, 1.35, 2.10));
@@ -738,11 +873,67 @@
     ctx.restore();
   }
 
+
+  /* --- TLD RING · 14–20 · the dark film's ring, in light ------------------ */
+  var RING_TLD = ['.com', '.io', '.ai', '.app', '.dev', '.co', '.net', '.xyz'];
+  var RING_HUE = ['#EF7908', '#2E9E33', '#7A5BFF', '#2F8BD6', '#E0364F', '#C9820A', '#1F9E86', '#B44BC9'];
+  var RING_TINT = [C.peach, C.mint, C.lav, C.sky, C.rose, C.peach, C.mint, C.lav];
+  function sceneRing(ctx, t, dur) {
+    paper(ctx, t, [[C.sky, 0.24, 0.24, 0.68, 0.03, 0.048, 0.90],
+                   [C.mint, 0.80, 0.58, 0.60, 0.035, 0.041, 0.75],
+                   [C.peach, 0.44, 0.93, 0.62, 0.03, 0.034, 0.55]]);
+    floatingIcons(ctx, t, 0.55);
+    plainHead(ctx, t, 'Every extension, live', [1], C.orange);
+
+    var ringY = H * 0.545;
+    var p = easeOut(inv(t, -0.04, dur * 0.58));
+    var rad = lerp(W * 0.045, W * 0.330, p);
+    for (var j = 0; j < 8; j++) {
+      // the formation keeps turning long after it has opened
+      var ang = (j / 8 - 0.1875 + p * 0.09 + t * 0.030) * TAU;
+      var bob = Math.sin(t * 1.25 + j * 0.85) * H * 0.007;
+      iconTile(ctx, {
+        x: W / 2 + Math.cos(ang) * rad * 0.95,
+        y: ringY + Math.sin(ang) * rad * 1.16 + bob,
+        size: W * 0.170 * lerp(0.46, 1.05, p),
+        rot: Math.sin(ang) * 0.09 + 0.03 * Math.sin(t * 0.9 + j),
+        alpha: smooth(inv(p, 0, 0.10)),
+        hue: RING_HUE[j], tint: RING_TINT[j], symbol: gText(RING_TLD[j]),
+        elev: 0.85 + 0.20 * Math.sin(t * 1.4 + j),
+        badge: smooth(inv(t, 1.05 + j * 0.11, 1.34 + j * 0.11)),
+        pulse: Math.sin(t * 2.0 + j * 0.8)
+      });
+    }
+    var burst = inv(t, 2.05, 3.05);
+    if (burst > 0 && burst < 1) confetti(ctx, W / 2, ringY, burst, W * 0.60);
+    var v = spring(inv(t, 2.05, 2.75), 1.7);
+    if (v > 0.002) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, inv(t, 2.05, 2.30) * 1.5);
+      chip(ctx, W / 2, H * 0.822, '240+ EXTENSIONS', W * 0.034, C.sky, '#1B5E9B', v);
+      ctx.restore();
+    }
+    var burst2 = inv(t, 4.10, 5.10);
+    if (burst2 > 0 && burst2 < 1) {
+      ctx.save();
+      ctx.globalAlpha = 0.20 * Math.sin(burst2 * Math.PI);
+      ctx.lineWidth = 14 + 40 * burst2;
+      ctx.strokeStyle = C.orange;
+      ctx.beginPath(); ctx.arc(W / 2, ringY, rad * (1.20 + 0.45 * burst2), 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.save();
+    wipeLabel(ctx, 'QUERIED AGAINST THE REGISTRY, NOT A CACHE', H * 0.895, W * 0.025, C.ink3,
+      W * 0.0072, inv(t, 3.10, 3.95), smooth(inv(t, 3.05, 3.40)) * 0.95);
+    ctx.restore();
+  }
+
   /* --- 4. THE REAL PRICE · 14–20 ------------------------------------------ */
   function scenePrice(ctx, t, dur) {
     paper(ctx, t, [[C.peach, 0.25, 0.22, 0.66, 0.03, 0.05, 0.95],
                    [C.rose, 0.78, 0.62, 0.60, 0.035, 0.041, 0.70],
                    [C.mint, 0.35, 0.92, 0.60, 0.03, 0.033, 0.50]]);
+    floatingIcons(ctx, t, 1.0);
     plainHead(ctx, t, 'At the real price', [3], C.orange);
 
     var ch = H * 0.400, cy = H * 0.520;
@@ -790,15 +981,37 @@
     ctx.restore();
     ctx.restore();
 
+    // the brandability score lands on the winning row
+    var sp3 = spring(inv(t, 3.35, 4.05), 1.8);
+    if (sp3 > 0.002) {
+      iconTile(ctx, {
+        x: W / 2 - CW * 0.30, y: H * 0.762, size: W * 0.135 * clamp(sp3),
+        rot: 0.05 * Math.sin(t * 0.9), alpha: Math.min(1, sp3 * 1.6),
+        hue: C.orange, tint: C.peach, symbol: gStar,
+        elev: 0.95 + 0.15 * Math.sin(t * 1.4)
+      });
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, inv(t, 3.45, 3.75) * 1.6);
+      setFont(ctx, '700', W * 0.072);
+      ctx.fillStyle = C.ink;
+      ctx.fillText('92', W / 2 - CW * 0.16, H * 0.782);
+      setFont(ctx, '700', W * 0.026);
+      ctx.fillStyle = C.greenD;
+      ctx.fillText('EXCELLENT', W / 2 - CW * 0.16, H * 0.812);
+      setFont(ctx, '400', W * 0.026);
+      ctx.fillStyle = C.ink3;
+      ctx.fillText('brandability score', W / 2 - CW * 0.16 + W * 0.155, H * 0.782);
+      ctx.restore();
+    }
     var v = spring(inv(t, 2.45, 3.15), 1.6);
     if (v > 0.002) {
       ctx.save();
-      ctx.globalAlpha = Math.min(1, inv(t, 2.45, 2.70) * 1.5);
-      chip(ctx, W / 2, H * 0.775, 'NO BROKER MARKUP', W * 0.030, C.mint, C.greenD, v);
+      ctx.globalAlpha = Math.min(1, inv(t, 2.45, 2.70) * 1.5) * (1 - smooth(inv(t, 3.30, 3.60)));
+      chip(ctx, W / 2, H * 0.762, 'NO BROKER MARKUP', W * 0.030, C.mint, C.greenD, v);
       ctx.restore();
     }
     ctx.save();
-    wipeLabel(ctx, 'PARKED, PREMIUM AND AFTERMARKET FILTERED OUT', H * 0.868, W * 0.024, C.ink3,
+    wipeLabel(ctx, 'PARKED, PREMIUM AND AFTERMARKET FILTERED OUT', H * 0.885, W * 0.024, C.ink3,
       W * 0.0070, inv(t, 3.15, 4.00), smooth(inv(t, 3.10, 3.45)) * 0.95);
     ctx.restore();
   }
@@ -824,145 +1037,66 @@
     ctx.restore();
   }
 
-  /* --- 5. THE SCORE · 20–24 ----------------------------------------------- */
-  function sceneScore(ctx, t, dur) {
-    paper(ctx, t, [[C.lav, 0.24, 0.24, 0.66, 0.03, 0.048, 0.95],
-                   [C.sky, 0.80, 0.58, 0.58, 0.035, 0.04, 0.70],
-                   [C.peach, 0.45, 0.92, 0.62, 0.03, 0.034, 0.55]]);
-    plainHead(ctx, t, 'Scored before you buy', [1], C.orange);
-
-    var ch = H * 0.360, cy = H * 0.505;
-    var p = spring(inv(t, -0.06, 0.62), 1.4);
-    ctx.save();
-    var top = cy - ch / 2 + (1 - clamp(p)) * H * 0.24 + hover(t, 1);
-    card(ctx, M, top, CW, ch, W * 0.055, 0.9 + 0.06 * osc(t, 0.31));
-    shine(ctx, M, top, CW, ch, W * 0.055, t, 2.4, 0.30);
-
-    var gx = M + CW * 0.27, gy = top + ch * 0.46, R = W * 0.125;
-    var a0 = Math.PI * 0.72, sweep = Math.PI * 1.56;
-    var gp = easeOut4(inv(t, 0.35, 1.45));
-    ctx.save();
-    ctx.lineCap = 'round'; ctx.lineWidth = W * 0.032;
-    ctx.strokeStyle = '#EDE9E2';
-    ctx.beginPath(); ctx.arc(gx, gy, R, a0, a0 + sweep); ctx.stroke();
-    var g = ctx.createLinearGradient(gx - R, gy + R, gx + R, gy - R);
-    g.addColorStop(0, C.gold); g.addColorStop(1, C.orange);
-    ctx.strokeStyle = g;
-    ctx.beginPath(); ctx.arc(gx, gy, R, a0, a0 + sweep * gp * 0.92); ctx.stroke();
-    if (gp > 0.99) {
-      var cq = ((t - 1.45) % 1.4) / 1.4;
-      ctx.strokeStyle = 'rgba(255,255,255,' + (0.55 * Math.sin(cq * Math.PI)).toFixed(3) + ')';
-      var ca2 = a0 + sweep * 0.92 * cq;
-      ctx.beginPath(); ctx.arc(gx, gy, R, Math.max(a0, ca2 - 0.22), ca2); ctx.stroke();
-    }
-    ctx.restore();
-    setFont(ctx, '700', W * 0.115);
-    var val = String(Math.round(lerp(0, 92, gp)));
-    var vw = ctx.measureText(val).width;
-    ctx.save();
-    ctx.globalAlpha = ctx.globalAlpha * smooth(inv(t, 0.35, 0.58));
-    ctx.fillStyle = C.ink;
-    ctx.fillText(val, gx - vw / 2, gy + W * 0.042);
-    ctx.restore();
-    setFont(ctx, '700', W * 0.024);
-    var el = 'EXCELLENT';
-    ctx.save();
-    ctx.globalAlpha = ctx.globalAlpha * smooth(inv(t, 1.40, 1.70));
-    ctx.fillStyle = C.greenD;
-    ctx.fillText(el, gx - ctx.measureText(el).width / 2, gy + R * 0.92);
-    ctx.restore();
-
-    var labels = ['Short', 'Sayable', 'Memorable'], vals = [0.92, 0.86, 0.95];
-    for (var i = 0; i < 3; i++) {
-      var bp = easeOut4(inv(t, 0.65 + i * 0.18, 1.55 + i * 0.18));
-      var by = top + ch * 0.235 + i * ch * 0.215, bx = M + CW * 0.50;
-      setFont(ctx, '400', W * 0.032);
-      ctx.fillStyle = C.ink2;
-      ctx.fillText(labels[i], bx, by - W * 0.010);
-      bar(ctx, bx, by + W * 0.010, CW * 0.34, W * 0.024, bp * vals[i], C.orange);
-      shine(ctx, bx, by + W * 0.010, CW * 0.34 * bp * vals[i], W * 0.024, W * 0.012, t, 1.9, 0.55, i * 0.22);
-      tickMark(ctx, bx + CW * 0.395, by + W * 0.022, W * 0.022,
-        inv(t, 1.45 + i * 0.18, 1.75 + i * 0.18), null, Math.sin(t * 1.9 + i * 1.2));
-    }
-    ctx.restore();
-
-    var pulse2 = inv(t, 2.55, 3.55);
-    if (pulse2 > 0 && pulse2 < 1) {
-      ctx.save();
-      ctx.globalAlpha = 0.42 * Math.sin(pulse2 * Math.PI);
-      ctx.lineWidth = 6 + 14 * pulse2;
-      ctx.strokeStyle = C.orange;
-      ctx.beginPath(); ctx.arc(gx, gy, R * (1.25 + 0.85 * pulse2), 0, TAU); ctx.stroke();
-      ctx.restore();
-    }
-    ctx.save();
-    wipeLabel(ctx, 'LENGTH · PRONOUNCEABILITY · MEMORABILITY', H * 0.800, W * 0.025, C.ink3,
-      W * 0.0075, inv(t, 2.10, 2.95), smooth(inv(t, 2.05, 2.40)) * 0.95);
-    ctx.restore();
-  }
-
-  /* --- 6. THE HANDLE · 24–28 ---------------------------------------------- */
-  var PLATFORMS = ['YouTube', 'Instagram', 'TikTok', 'Facebook', 'Pinterest'];
+  /* --- 6. THE HANDLE · 26–30 · platform tiles ---------------------------- */
+  var PLAT = ['YT', 'IG', 'TT', 'FB', 'PIN'];
+  var PLAT_HUE = ['#E0364F', '#C9349B', '#111111', '#2F6FD6', '#D62B3F'];
+  var PLAT_TINT = [C.rose, C.lav, C.sky, C.sky, C.rose];
   function sceneHandles(ctx, t, dur) {
     paper(ctx, t, [[C.mint, 0.26, 0.26, 0.66, 0.03, 0.047, 0.95],
                    [C.sky, 0.78, 0.60, 0.58, 0.035, 0.039, 0.70],
                    [C.lav, 0.45, 0.93, 0.60, 0.03, 0.033, 0.50]]);
+    floatingIcons(ctx, t, 0.55);
     plainHead(ctx, t, 'And the handle', [2], C.orange);
 
-    var ch = H * 0.375, cy = H * 0.512;
-    var p = spring(inv(t, -0.06, 0.62), 1.4);
-    ctx.save();
-    var top = cy - ch / 2 + (1 - clamp(p)) * H * 0.24 + hover(t, 2);
-    card(ctx, M, top, CW, ch, W * 0.055, 0.9 + 0.06 * osc(t, 0.29));
-    shine(ctx, M, top, CW, ch, W * 0.055, t, 2.4, 0.30);
-    setFont(ctx, '700', W * 0.050);
-    ctx.fillStyle = C.ink;
-    ctx.fillText('@brewnorth', M + W * 0.055, top + H * 0.056);
-
-    for (var i = 0; i < 5; i++) {
-      var rp = smooth(inv(t, 0.28 + i * 0.10, 0.62 + i * 0.10));
-      if (rp <= 0.004) continue;
-      var ry = top + H * 0.112 + i * H * 0.058;
+    // the handle itself, on a card
+    var ha = spring(inv(t, -0.04, 0.60), 1.6);
+    if (ha > 0.002) {
+      var hw = W * 0.58, hh = H * 0.078;
+      var hy = H * 0.352 + (1 - clamp(ha)) * H * 0.05 + hover(t, 5, 0.004);
       ctx.save();
-      ctx.globalAlpha = ctx.globalAlpha * rp;
-      ctx.translate((1 - rp) * W * 0.05, 0);
-      setFont(ctx, '400', W * 0.034);
-      ctx.fillStyle = C.ink2;
-      ctx.fillText(PLATFORMS[i], M + W * 0.055, ry + W * 0.012);
-      setFont(ctx, '700', W * 0.027);
-      ctx.fillStyle = C.greenD;
-      ctx.globalAlpha = ctx.globalAlpha * smooth(inv(t, 0.90 + i * 0.11, 1.16 + i * 0.11));
-      var av = 'free';
-      ctx.fillText(av, M + CW - W * 0.150 - ctx.measureText(av).width, ry + W * 0.009);
+      ctx.globalAlpha = Math.min(1, inv(t, -0.04, 0.20) * 1.5);
+      card(ctx, (W - hw) / 2, hy, hw, hh, hh / 2, 0.8 + 0.08 * osc(t, 0.34));
+      shine(ctx, (W - hw) / 2, hy, hw, hh, hh / 2, t, 2.0, 0.34);
+      setFont(ctx, '700', hh * 0.46);
+      var lbl = '@brewnorth';
+      var lw = ctx.measureText(lbl).width;
+      ctx.fillStyle = C.ink;
+      ctx.fillText(lbl, W / 2 - lw / 2, hy + hh * 0.65);
       ctx.restore();
-      tickMark(ctx, M + CW - W * 0.082, ry, W * 0.026,
-        inv(t, 0.86 + i * 0.11, 1.14 + i * 0.11), null, Math.sin(t * 2.1 + i * 0.9));
     }
-    ctx.restore();
 
-    var burst = inv(t, 1.55, 2.55);
+    // five tiles on an arc, each ticking free
+    var size = W * 0.166, gap = W * 0.030;
+    var span = 5 * size + 4 * gap, x0 = W / 2 - span / 2 + size / 2;
+    for (var i = 0; i < 5; i++) {
+      var ap = spring(inv(t, 0.12 + i * 0.09, 0.76 + i * 0.09), 1.7);
+      if (ap <= 0.002) continue;
+      var arc = -Math.cos((i / 4 - 0.5) * Math.PI) * H * 0.018;
+      iconTile(ctx, {
+        x: x0 + i * (size + gap),
+        y: H * 0.560 + arc + (1 - clamp(ap)) * H * 0.09 + Math.sin(t * 1.3 + i * 1.1) * H * 0.008,
+        size: size * lerp(0.82, 1, clamp(ap)),
+        rot: 0.04 * Math.sin(t * 0.85 + i),
+        alpha: Math.min(1, ap * 1.6),
+        hue: PLAT_HUE[i], tint: PLAT_TINT[i], symbol: gText(PLAT[i]),
+        elev: 0.9 + 0.15 * Math.sin(t * 1.5 + i),
+        badge: smooth(inv(t, 0.95 + i * 0.11, 1.24 + i * 0.11)),
+        pulse: Math.sin(t * 2.1 + i * 0.9)
+      });
+    }
+
+    var burst = inv(t, 1.60, 2.60);
     if (burst > 0 && burst < 1) confetti(ctx, W / 2, H * 0.56, burst, W * 0.55);
-    var v = spring(inv(t, 1.55, 2.25), 1.7);
+    var v = spring(inv(t, 1.60, 2.30), 1.7);
     if (v > 0.002) {
       ctx.save();
-      ctx.globalAlpha = Math.min(1, inv(t, 1.55, 1.80) * 1.5);
-      chip(ctx, W / 2, H * 0.775, 'ALL FIVE FREE', W * 0.036, C.mint, C.greenD, v);
-      ctx.restore();
-    }
-    var burst2 = inv(t, 2.80, 3.80);
-    if (burst2 > 0 && burst2 < 1) {
-      ctx.save();
-      ctx.globalAlpha = 0.40 * Math.sin(burst2 * Math.PI);
-      ctx.lineWidth = 5 + 12 * burst2;
-      ctx.strokeStyle = C.green;
-      rr(ctx, W * 0.5 - W * (0.20 + 0.18 * burst2), H * 0.775 - H * (0.030 + 0.026 * burst2),
-        W * (0.40 + 0.36 * burst2), H * (0.060 + 0.052 * burst2), H * 0.030);
-      ctx.stroke();
+      ctx.globalAlpha = Math.min(1, inv(t, 1.60, 1.85) * 1.5);
+      chip(ctx, W / 2, H * 0.752, 'ALL FIVE FREE', W * 0.036, C.mint, C.greenD, v);
       ctx.restore();
     }
     ctx.save();
-    wipeLabel(ctx, 'ONE NAME, EVERY PLATFORM', H * 0.860, W * 0.025, C.ink3,
-      W * 0.0080, inv(t, 2.20, 3.00), smooth(inv(t, 2.15, 2.50)) * 0.95);
+    wipeLabel(ctx, 'YOUTUBE · INSTAGRAM · TIKTOK · FACEBOOK · PINTEREST', H * 0.845,
+      W * 0.023, C.ink3, W * 0.0045, inv(t, 2.10, 3.00), smooth(inv(t, 2.05, 2.40)) * 0.95);
     ctx.restore();
   }
 
@@ -985,7 +1119,24 @@
     paper(ctx, t, [[C.peach, 0.28, 0.30, 0.72, 0.035, 0.05, 1.0],
                    [C.mint, 0.76, 0.66, 0.62, 0.035, 0.041, 0.8],
                    [C.sky, 0.40, 0.94, 0.62, 0.03, 0.034, 0.5]]);
+    floatingIcons(ctx, t, 1.0);
 
+    // icon tiles spiral in and are absorbed into the mark
+    for (var g = 0; g < 8; g++) {
+      var gp = easeIn(inv(t, 0.02 + g * 0.045, 0.70 + g * 0.045));
+      if (gp >= 0.999 || gp <= 0.001) continue;
+      var ang = (g / 8) * TAU + 1.1 + gp * 1.3;
+      var grad = lerp(Math.max(W, H) * 0.42, W * 0.05, gp);
+      iconTile(ctx, {
+        x: W / 2 + Math.cos(ang) * grad * 0.78,
+        y: H * 0.395 + Math.sin(ang) * grad * 0.62,
+        size: W * 0.115 * lerp(1, 0.25, gp),
+        rot: ang * 0.5 + t * 0.4,
+        alpha: Math.min(1, (1 - gp) * 2.2),
+        hue: RING_HUE[g], tint: RING_TINT[g], symbol: gText(RING_TLD[g]),
+        elev: 0.9
+      });
+    }
     var gather = easeIn(inv(t, 0.00, 0.80));
     for (var r = 0; r < 3; r++) {
       if (gather >= 0.999) break;
@@ -1090,10 +1241,10 @@
     { name: 'pain1', end: 4.0, fn: sceneFeed, cam: cam(1.00, 1.075, 0, -0.010, 0, 0.006) },
     { name: 'pain2', end: 8.0, fn: sceneAI, cam: cam(1.09, 1.00, -0.008, 0.006, 0.008, -0.008) },
     { name: 'fix', end: 14.0, fn: sceneFix, cam: cam(1.00, 1.075, 0.008, -0.008, -0.006, 0.006) },
-    { name: 'price', end: 20.0, fn: scenePrice, cam: cam(1.09, 1.00, -0.008, 0.006, 0.008, -0.008) },
-    { name: 'score', end: 24.0, fn: sceneScore, cam: cam(1.00, 1.075, 0.008, -0.008, -0.008, 0.008) },
-    { name: 'handles', end: 28.0, fn: sceneHandles, cam: cam(1.09, 1.00, -0.008, 0.006, 0.008, -0.008) },
-    { name: 'close', end: 34.0, fn: sceneClose, cam: cam(1.09, 1.00, -0.006, 0.004, 0.005, -0.005) }
+    { name: 'ring', end: 20.0, fn: sceneRing, cam: cam(1.11, 1.00, -0.006, 0.004, 0.006, -0.006) },
+    { name: 'price', end: 26.0, fn: scenePrice, cam: cam(1.00, 1.075, 0.008, -0.008, -0.008, 0.008) },
+    { name: 'handles', end: 30.0, fn: sceneHandles, cam: cam(1.09, 1.00, -0.008, 0.006, 0.008, -0.008) },
+    { name: 'close', end: 36.0, fn: sceneClose, cam: cam(1.09, 1.00, -0.006, 0.004, 0.005, -0.005) }
   ];
   var DUR = TIMELINE[TIMELINE.length - 1].end;
 

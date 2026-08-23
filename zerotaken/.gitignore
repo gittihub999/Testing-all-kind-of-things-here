@@ -1,6 +1,7 @@
 node_modules/
 frames/
+frames_*/
 prev/
 package-lock.json
 audio/*.wav
-audio/duck.npy
+audio/*.npy
