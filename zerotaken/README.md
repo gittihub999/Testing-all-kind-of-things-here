@@ -8,12 +8,13 @@ domain name generator that only surfaces domains you can actually register.
 | `zerotaken-promo.mp4` | the finished film — 46.0s, 1080×1920, 30fps, H.264 CRF 17 + AAC |
 | `zerotaken-promo.html` | the same film as a self-contained player with the audio embedded |
 | `SEO.md` | titles, description, tags, transcript and claim sourcing |
+| `voice-auditions.m4a` | five voices reading the same line, if you want a different one |
 | `engine.js` | the animation — one pure `drawFrame(ctx, t)`; `BRAND` and `TIMELINE` at the top |
 | `render.js` | frame renderer: resumable, 3× temporal motion blur, JPEG intermediates |
 | `shell.html` | player template; `/*__ENGINE__*/` and `__AUDIO__` are substituted at build time |
 | `engine.16x9.js` | the original landscape cut, kept for reference |
 | `audio/build_audio.py` | the score and the sound effects, synthesised |
-| `audio/build_vo.py` | the voiceover (Piper TTS, `en_GB-alan-medium`) |
+| `audio/build_vo.py` | the voiceover (Kokoro-82M, `am_michael`) |
 | `audio/mix.py` | stem mix |
 | `audio/stem_*.m4a` | music / SFX / voice stems, if you want to remix |
 
@@ -34,7 +35,9 @@ sourced in `SEO.md`.
 28–32  SCORE      gauge draws to 92                  "brand quality score"
 32–36  HANDLES    five platform tiles, one handle    "One handle. Everywhere."
 36–40  PRIVACY    browser pane, lock, brokers bounce "Never leaves your browser."
-40–46  CLOSE      tile → check → lockup → CTA        "zerotaken.com · free to search"
+40–46  LOGO BUILD the rejected names spiral in and are absorbed; the tile becomes a
+                  check; the check draws itself, then travels down and lands as the
+                  swoosh of the wordmark while ZERO and taken fly in to meet it
 ```
 
 Cuts sit on a 120 BPM bar grid (2.0s) so the score locks to the edit. Hue arc:
@@ -43,9 +46,17 @@ answer) → blue/violet through the product beats → mint (privacy) → orange.
 
 ## Voiceover
 
-`en_GB-alan-medium`, which reads at ~130 wpm unstretched, so the pace comes from
-the voice rather than from slowing a fast one down. 53 words, 26.6s of speech
-across 46s — 120 wpm while speaking, with real silences between phrases.
+**Kokoro-82M** (Apache-2.0), voice `am_michael`, speed 0.86 — 53 words, 25.7s of
+speech across 46s, **124 wpm while speaking**, with real silences between
+phrases. Every line has at least 0.84s of slack before its beat ends.
+
+Deliberately **dry**: no reverb on the voice at all. Processing is one
+high-pass at 80 Hz, a 2 dB presence shelf at 4.5 kHz and gentle levelling —
+no saturation stage. The voice sits **+13.5 dB over the music** during speech.
+
+`voice-auditions.m4a` has `am_michael`, `am_onyx`, `bm_george`, `af_heart` and
+`af_bella` reading the same line. To switch:
+`VO_VOICE=bm_george VO_SPEED=0.86 python3 audio/build_vo.py`, then re-mix.
 
 ```
  0.70  Naming your startup?
@@ -59,8 +70,6 @@ across 46s — 120 wpm while speaking, with real silences between phrases.
 36.60  Searches never leave your browser.
 40.70  ZeroTaken dot com. / Free to search.
 ```
-
-Every line has at least 0.8s of slack before its beat ends.
 
 ## Score
 
@@ -97,7 +106,7 @@ SUB=3 node render.js frames all                # 1380 frames, resumable
 ffmpeg -y -framerate 30 -i frames/f_%04d.jpg -c:v libx264 -pix_fmt yuv420p \
   -crf 17 -preset slow -movflags +faststart video_only.mp4
 
-pip install piper-tts && python3 -m piper.download_voices en_GB-alan-medium
+pip install kokoro-onnx   # model files in /tmp/kokoro from the kokoro-onnx releases
 cd audio && python3 build_audio.py && python3 build_vo.py && python3 mix.py && cd ..
 
 ffmpeg -y -i video_only.mp4 -i audio/mix.wav \

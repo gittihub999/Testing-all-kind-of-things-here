@@ -437,16 +437,20 @@ for k in range(6):
     tick(36.75 + k * 0.52, 0.13, 1900 + (k % 3) * 400)
     blip(36.76 + k * 0.52, 0.07, 700, False)
 
-# 10 · close
+# 10 · close — the logo build
 whoosh(40.00, 0.6, 0.34, True)
 shimmer(40.05, 1.6, 0.16)
-blip(41.00, 0.24, 980, True)                        # .com -> check morph
-sweepup(41.55, 0.52, 0.22, 320, 1700)               # container dissolving
-snap(42.60, 0.95)                                   # the lockup lands
-impact(42.60, 0.70, 48, 2.0)
-shimmer(42.62, 2.6, 0.34)
-blip(44.08, 0.30, 1240, True)                       # the button
-shimmer(44.10, 1.8, 0.16)
+for i in range(10):                                  # names absorbed into the mark
+    tick(40.62 + i * 0.042, 0.10, 2600 + (i % 4) * 320)
+blip(41.02, 0.22, 1080, True)
+blip(41.26, 0.26, 980, True)                         # .com -> check
+sweepup(41.50, 0.66, 0.26, 340, 2100)                # the mark drawing itself
+whoosh(42.22, 0.62, 0.42, True, 300, 4200)           # the travel
+snap(42.92, 0.95)                                    # it lands as the swoosh
+impact(42.92, 0.72, 48, 2.0)
+shimmer(42.94, 2.6, 0.34)
+blip(44.30, 0.30, 1240, True)                        # the button
+shimmer(44.32, 1.8, 0.16)
 
 sfx *= 1 - np.clip((T - 45.2) / 0.8, 0, 1)
 

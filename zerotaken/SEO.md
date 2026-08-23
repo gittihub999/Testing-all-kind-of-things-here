@@ -59,6 +59,8 @@ search`, `.com availability`, `premium domain`, `domain front running`,
 
 ## Transcript (for captions / description timestamps)
 
+Read by Kokoro-82M `am_michael` at 124 wpm.
+
 ```
 0:00  Naming your startup?
 0:04  Every good dot com is gone.

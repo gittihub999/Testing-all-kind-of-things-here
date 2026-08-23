@@ -12,9 +12,9 @@ duck = np.load(os.path.join(OUT, 'duck.npy')).astype(np.float64)
 duck = pad(duck)[:n]
 
 db = lambda x: 10 ** (x / 20)
-mus_g = db(-11.0) * (1 - duck * (1 - db(-3.5)))   # music leans back a little under the read, never drops out
+mus_g = db(-11.5) * (1 - duck * (1 - db(-5.0)))   # music leans back a little under the read, never drops out
 sfx_g = db(-8.0) * (1 - duck * (1 - db(-2.0)))
-mix = music * mus_g + sfx * sfx_g + vo * db(-1.5)
+mix = music * mus_g + sfx * sfx_g + vo * db(1.0)
 
 # soft limit, then leave headroom for loudnorm
 mix = np.tanh(mix * 0.92) * 0.97

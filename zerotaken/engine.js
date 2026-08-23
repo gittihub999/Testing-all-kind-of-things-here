@@ -57,6 +57,7 @@
   function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
   function easeOut4(t) { return 1 - Math.pow(1 - t, 4); }
   function easeIn(t) { return t * t * t; }
+  function easeInOut(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
   function easeBack(t) { var c = 1.5; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
   function osc(t, hz, ph) { return Math.sin(t * hz * TAU + (ph || 0)); }
 
@@ -523,6 +524,17 @@
     ctx.lineTo(lerp(p1[0], p2[0], v), lerp(p1[1], p2[1], v));
     return [lerp(p1[0], p2[0], v), lerp(p1[1], p2[1], v)];
   }
+  /* the swoosh geometry, centred on the origin, optionally drawing on */
+  function checkStroke(ctx, s, fill, drawP, lw) {
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = fill;
+    ctx.lineWidth = lw === undefined ? s * 0.1848 : lw;
+    var tip = pathCheck(ctx, 0, 0, s, drawP === undefined ? 1 : drawP);
+    ctx.stroke();
+    ctx.restore();
+    return tip;
+  }
   function checkSym(ctx, s, fill) {
     ctx.save();
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -565,9 +577,22 @@
     g.addColorStop(clamp(q, 0.003, 0.997), hot);
     if (b < 0.998) g.addColorStop(b, base);
   }
+  /* where lockup() would put its swoosh — so a travelling mark can land on it */
+  function swooshTarget(ctx, cx, cy, s) {
+    setFont(ctx, '700', s);
+    var wZ = trackW(ctx, 'ZERO', s * 0.07);
+    setFont(ctx, '700', s * 0.94);
+    var wT = trackW(ctx, 'taken', s * 0.015);
+    var block = Math.max(wZ, wT);
+    var left = cx - block / 2 - s * 0.30;
+    return { x: left + block + s * 0.62, y: cy + s * 0.20, s: s * 0.92, lw: s * 0.17 };
+  }
   function lockup(ctx, cx, cy, s, o) {
     o = o || {};
     var zTrack = s * 0.07, tTrack = s * 0.015;
+    var zDX = o.zDX || 0, tDX = o.tDX || 0;
+    var zA = o.zA === undefined ? 1 : o.zA, tA = o.tA === undefined ? 1 : o.tA;
+    var pAlpha = ctx.globalAlpha;
     setFont(ctx, '700', s);
     var wZ = trackW(ctx, 'ZERO', zTrack);
     setFont(ctx, '700', s * 0.94);
@@ -590,7 +615,9 @@
       if (ph >= 0) hotStop(gz, ph, '#ff9a1f', '#fff4d8');
       ctx.fillStyle = gz;
     }
-    trackFill(ctx, 'ZERO', left + (block - wZ) / 2, yZ, zTrack);
+    ctx.globalAlpha = pAlpha * zA;
+    trackFill(ctx, 'ZERO', left + (block - wZ) / 2 + zDX, yZ, zTrack);
+    ctx.globalAlpha = pAlpha;
     setFont(ctx, '700', s * 0.94);
     if (o.botCol) { ctx.fillStyle = o.botCol; }
     else {
@@ -600,7 +627,9 @@
       ctx.fillStyle = gt;
     }
     ctx.shadowColor = hexa(o.glowCol || '#6ee85a', 0.7);
-    trackFill(ctx, 'taken', left + (block - wT) / 2, yT, tTrack);
+    ctx.globalAlpha = pAlpha * tA;
+    trackFill(ctx, 'taken', left + (block - wT) / 2 + tDX, yT, tTrack);
+    ctx.globalAlpha = pAlpha;
     ctx.restore();
 
     var sp = o.swoosh === undefined ? 1 : clamp(o.swoosh);
@@ -1560,83 +1589,166 @@
     ctx.restore();
   }
 
-  /* --- 7. HERO-PEEL + SYMBOL-MORPH · 25.0–30.0 --------------------------- */
+  /* --- 10. THE LOGO BUILD · 40.0–46.0 ------------------------------------
+     Everything the film has shown collapses into the mark: the rejected names
+     spiral in and are absorbed, the tile becomes a check, the check draws
+     itself, then travels down and lands as the swoosh of the wordmark while
+     ZERO and taken fly in to meet it. Nothing appears from nowhere. */
   function sceneClose(ctx, t, dur) {
     var cx = W * 0.5;
-    var sw = swell(inv(t, 0, 2.4));
-    var hue = ramp([C.blue, C.indigo, C.violet, C.ember, C.orange], inv(t, 0.05, 2.30));
-    var rise = smooth(inv(t, 0.15, 2.55));
-    var cyT = lerp(H * 0.50, H * 0.360, rise) + Math.sin(t * 0.85) * H * 0.004;
-    var size = lerp(W * 0.20, W * 0.375, easeOut(inv(t, 0.00, 1.60)));
-    var morph = smooth(inv(t, 1.00, 1.42));
-    var bodyA = 1 - smooth(inv(t, 1.52, 2.06));
-    var freeS = lerp(1, 1.28, smooth(inv(t, 1.44, 2.60)));
-    var SNAP = 2.60;
+    var sw = swell(inv(t, 0, 2.6));
+    var hue = ramp([C.blue, C.indigo, C.violet, C.ember, C.orange], inv(t, 0.20, 2.30));
+
+    var tileY = H * 0.315;
+    var tileS = lerp(W * 0.20, W * 0.335, easeOut(inv(t, 0.00, 1.30)));
+    var morph = smooth(inv(t, 0.62, 1.24));
+    var bodyA = 1 - smooth(inv(t, 1.24, 1.86));
+    var drawP = smooth(inv(t, 1.50, 2.16));          // the mark draws itself
+    var TRAVEL0 = 2.24, SNAP = 2.92;
+    var trav = easeInOut(inv(t, TRAVEL0, SNAP - 0.05));
     var snapped = t >= SNAP;
-    var flash = 1 - smooth(inv(t, SNAP, SNAP + 0.22));
+    var flash = 1 - smooth(inv(t, SNAP, SNAP + 0.24));
+
+    var lockS = W * 0.150 * (1 + (snapped ? 0.020 * osc(t, 0.62) : 0));
+    var lockY = H * 0.500;
+    var tgt = swooshTarget(ctx, cx, lockY, lockS);
+    var grow = lerp(0.52, 1.06, smooth(inv(t, 1.20, 2.14)));
 
     ctx.save();
-    ambient(ctx, t, snapped ? C.gold : C.violet, 0.6);
-    aurora(ctx, t, C.ember, C.orange, snapped ? 0.6 : 0.35);
+    ambient(ctx, t, snapped ? C.gold : C.violet, 0.60);
+    aurora(ctx, t, C.ember, C.orange, snapped ? 0.55 : 0.32);
+    columns(ctx, t, snapped ? C.gold : C.violet, 0.35);
 
-    glowE(ctx, cx, cyT, W * 0.50 * (0.8 + 0.3 * sw), H * 0.17 * (0.8 + 0.3 * sw), hue, 0.42 * sw);
-    // sparks spiral into the mark, then keep orbiting it
-    orbit(ctx, cx, cyT, size * (1.7 - 0.55 * smooth(inv(t, 0, 1.9))), size * 1.5, t, 12, hue, 0.55, 0.62, 17);
-
-    var noSym = function () { };
-    if (morph < 0.995) {
-      slab(ctx, {
-        x: cx, y: cyT, size: size, alpha: 1, bodyA: bodyA,
-        c1: '#ffffff', c2: hue, halo: hue,
-        symbol: tldSym('.com'), symbol2: checkSym, morph: morph,
-        symbolCol: mix('#ffffff', hue, 0.42), glowCol: hue
-      });
-    } else {
-      if (bodyA > 0.004) {
-        slab(ctx, {
-          x: cx, y: cyT, size: size, alpha: 1, bodyA: bodyA,
-          c1: '#ffffff', c2: hue, halo: hue, symbol: noSym
-        });
-      }
-      var ms = size * 0.84 * freeS * (1 + 0.035 * osc(t, 0.62));
+    /* --- the rejected names spiral in and are absorbed ------------------- */
+    var absorbFlash = 0;
+    for (var i = 0; i < 10; i++) {
+      var t0i = 0.02 + i * 0.042, t1i = 0.62 + i * 0.042;
+      var gp = easeIn(inv(t, t0i, t1i));
+      absorbFlash = Math.max(absorbFlash, 1 - Math.min(1, Math.abs(t - t1i) / 0.11));
+      if (gp >= 0.999 || gp <= 0.001) continue;
+      var ang = (i / 10) * TAU + 1.15 + gp * 1.35;
+      var rad = lerp(Math.max(W, H) * 0.52, tileS * 0.42, gp);
+      var gx = cx + Math.cos(ang) * rad * 0.72;
+      var gy = tileY + Math.sin(ang) * rad * 0.62;
+      var gs = lerp(1, 0.28, gp);
       ctx.save();
-      ctx.translate(cx, cyT);
-      ctx.rotate(0.045 * osc(t, 0.30));
-      strokeBloom(ctx, function () {
-        ctx.beginPath();
-        ctx.moveTo(-ms * 0.30, 0); ctx.lineTo(-ms * 0.09, ms * 0.21); ctx.lineTo(ms * 0.32, -ms * 0.24);
-      }, ms * 0.135, hue, (0.55 + 0.75 * sw) * lerp(0.55, 1, 1 - bodyA));
-      var cg = ctx.createLinearGradient(-ms * 0.3, ms * 0.2, ms * 0.32, -ms * 0.24);
-      cg.addColorStop(0, '#ffe6bb'); cg.addColorStop(0.5, C.gold); cg.addColorStop(1, hue);
-      ctx.shadowColor = hexa(hue, 0.95); ctx.shadowBlur = ms * 0.45;
-      checkSym(ctx, ms, cg);
+      ctx.globalAlpha = Math.min(1, (1 - gp) * 2.2) * 0.9;
+      chip(ctx, {
+        x: gx, y: gy, w: W * 0.30, h: H * 0.032, scale: gs, alpha: 1,
+        text: NAME_FEED[(i * 3 + 1) % NAME_FEED.length],
+        hue: mix(C.violet, hue, gp), hue2: mix(C.indigo, C.gold, gp),
+        glow: 0.35 + 0.75 * gp, strike: 0, badge: 0, dim: 0.55 * (1 - gp)
+      });
+      ctx.restore();
+    }
+    if (absorbFlash > 0.02 && t < 1.30) {
+      glowE(ctx, cx, tileY, tileS * 1.5 * absorbFlash, tileS * 1.1 * absorbFlash,
+        '#ffffff', 0.30 * absorbFlash);
+    }
+
+    glowE(ctx, cx, tileY, W * 0.50 * (0.8 + 0.3 * sw), H * 0.17 * (0.8 + 0.3 * sw),
+      hue, (0.42 * sw) * (1 - trav * 0.55));
+    var orbY = lerp(tileY, lockY + lockS * 0.35, trav);
+    orbit(ctx, cx, orbY, lerp(tileS * 1.7, W * 0.46, trav), lerp(tileS * 1.5, H * 0.15, trav),
+      t, 14, hue, 0.55, 0.62, 17);
+
+    /* --- tile -> check -> travelling mark -------------------------------- */
+    if (morph < 0.995 || bodyA > 0.004) {
+      slab(ctx, {
+        x: cx, y: tileY, size: tileS, alpha: 1, bodyA: bodyA,
+        c1: '#ffffff', c2: hue, halo: hue,
+        symbol: tldSym('.com'),
+        symbol2: function (ctx2, s2, fill) { checkStroke(ctx2, s2 * 0.62, fill); },
+        morph: morph, symbolCol: mix('#ffffff', hue, 0.42), glowCol: hue
+      });
+    }
+    if (morph > 0.99) {
+      // position and size interpolate straight onto the lockup's swoosh
+      var bow = Math.sin(trav * Math.PI) * H * 0.055;
+      var mx = lerp(cx, tgt.x, trav);
+      var my = lerp(tileY, tgt.y, trav) - bow;
+      var ms = lerp(tileS * grow, tgt.s, trav);
+      var mlw = lerp(tileS * grow * 0.1848, tgt.lw, trav);
+      var mAlpha = snapped ? 0 : 1;                  // the lockup takes over
+      if (mAlpha > 0 && bodyA < 0.6) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, (1 - bodyA) * 2.2);
+        ctx.translate(mx, my);
+        ctx.rotate((1 - trav) * 0.045 * osc(t, 0.30));
+        strokeBloom(ctx, function () { pathCheck(ctx, 0, 0, ms, drawP); },
+          mlw, hue, (0.55 + 0.75 * sw) * lerp(0.55, 1, 1 - bodyA));
+        var cg = ctx.createLinearGradient(-ms * 0.5, ms * 0.3, ms * 0.56, -ms * 0.42);
+        cg.addColorStop(0, '#ffe6bb'); cg.addColorStop(0.5, C.gold); cg.addColorStop(1, hue);
+        ctx.shadowColor = hexa(hue, 0.95); ctx.shadowBlur = ms * 0.40;
+        var tip = checkStroke(ctx, ms, cg, drawP, mlw);
+        if (drawP < 0.995 && tip) {                  // bright leading dot
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.fillStyle = '#fff';
+          ctx.shadowColor = '#fff'; ctx.shadowBlur = ms * 0.6;
+          ctx.beginPath(); ctx.arc(tip[0], tip[1], mlw * 0.62, 0, TAU); ctx.fill();
+          streak(ctx, tip[0], tip[1], ms * 0.9, '#ffe6bb', 0.55);
+        }
+        ctx.restore();
+      }
+    }
+
+    /* --- the wordmark converges on it ------------------------------------ */
+    var conv = easeOut4(inv(t, TRAVEL0 + 0.06, SNAP - 0.04));
+    if (conv > 0.002 || snapped) {
+      var land = snapped ? 1 : conv * 0.96;
+      var dx = (1 - land) * W * 0.62;
+      var la = Math.min(1, conv * 1.8);
+      // motion trails behind each half
+      if (!snapped && conv < 0.97) {
+        for (var g = 1; g <= 2; g++) {
+          ctx.save();
+          ctx.globalAlpha = 0.10 * (1 - conv) / g;
+          lockup(ctx, cx, lockY, lockS, {
+            glowCol: C.orange, glowAmt: 0.06, swoosh: 0,
+            zDX: -dx - g * W * 0.030, tDX: dx + g * W * 0.030, zA: la, tA: la
+          });
+          ctx.restore();
+        }
+      }
+      ctx.save();
+      lockup(ctx, cx, lockY, lockS, {
+        glowCol: C.orange, glowAmt: 0.24 + 0.16 * sw,
+        swoosh: snapped ? 1 : 0,
+        phase: snapped ? (t - SNAP) / 1.15 : undefined,
+        zDX: -dx, tDX: dx, zA: la, tA: la
+      });
       ctx.restore();
     }
 
     if (snapped) {
-      var lsw = swell(inv(t, SNAP, dur));
-      var s1 = W * 0.150 * (1 + 0.022 * osc(t, 0.62));
-      lockup(ctx, cx, H * 0.655, s1, {
-        glowCol: C.orange, glowAmt: 0.24 + 0.16 * lsw, swoosh: 0, phase: (t - SNAP) / 1.15
-      });
-      shockwave(ctx, cx, H * 0.60, inv(t, SNAP, SNAP + 0.55), C.gold, 0.16, W * 2.0);
-      shockwave(ctx, cx, H * 0.60, inv(t, SNAP + 0.95, SNAP + 1.85), C.orange, 0.11, W * 2.0);
-      shockwave(ctx, cx, H * 0.60, inv(t, SNAP + 2.00, SNAP + 2.90), C.gold, 0.09, W * 2.0);
-      glowE(ctx, cx, H * 0.655, W * 0.60 * (0.9 + 0.18 * osc(t, 0.5)), H * 0.10, C.orange, 0.16 + 0.08 * lsw);
+      shockwave(ctx, cx, lockY, inv(t, SNAP, SNAP + 0.55), C.gold, 0.16, W * 2.0);
+      shockwave(ctx, cx, lockY, inv(t, SNAP + 0.95, SNAP + 1.85), C.orange, 0.11, W * 2.0);
+      shockwave(ctx, cx, lockY, inv(t, SNAP + 2.00, SNAP + 2.90), C.gold, 0.09, W * 2.0);
+      glowE(ctx, cx, lockY + lockS * 0.35, W * 0.60 * (0.9 + 0.18 * osc(t, 0.5)), H * 0.11,
+        C.orange, 0.18 + 0.09 * sw);
+      // a shine runs the swoosh on a loop
+      var shq = ((t - SNAP) % 1.6) / 1.6;
+      if (shq < 0.45) {
+        streak(ctx, tgt.x, tgt.y, tgt.s * 1.5, '#fff2d8',
+          0.42 * Math.sin(shq / 0.45 * Math.PI));
+      }
 
-      var ua = smooth(inv(t, 3.06, 3.44));
+      var ua = smooth(inv(t, 3.44, 3.82));
       if (ua > 0.01) {
         ctx.save();
-        wipeLabel(ctx, 'ZEROTAKEN.COM', H * 0.812, W * 0.036, '#ffffff',
-          W * 0.013 * (1 + 0.05 * osc(t, 0.28)), inv(t, 3.06, 3.80), ua * 0.78);
+        wipeLabel(ctx, 'ZEROTAKEN.COM', H * 0.648, W * 0.036, '#ffffff',
+          W * 0.013 * (1 + 0.05 * osc(t, 0.28)), inv(t, 3.44, 4.16), ua * 0.78);
         ctx.restore();
       }
-      var ca = smooth(inv(t, 4.05, 4.45));
-      if (ca > 0.01) {
+
+      var ca = easeBack(inv(t, 4.28, 4.86));
+      if (ca > 0.004) {
         ctx.save();
-        var cw2 = W * 0.46 * lerp(0.9, 1, easeOut(inv(t, 4.05, 4.55))), ch2 = H * 0.048;
-        var cx2 = cx - cw2 / 2, cy2 = H * 0.878 - ch2 / 2;
-        ctx.globalAlpha = ca;
+        var cw2 = W * 0.46, ch2 = H * 0.048;
+        var cy2 = H * 0.735 - ch2 / 2 + (1 - clamp(ca)) * H * 0.030;
+        var cx2 = cx - cw2 / 2;
+        ctx.globalAlpha = Math.min(1, ca * 1.6);
+        var lsw = swell(inv(t, SNAP, dur));
         shapeBloom(ctx, function (k) {
           rr(ctx, cx2 - cw2 * (k - 1) * 0.12, cy2 - ch2 * (k - 1) * 0.5,
             cw2 * (1 + (k - 1) * 0.24), ch2 * k, ch2 * k / 2);
@@ -1650,17 +1762,20 @@
         var lw2 = trackW(ctx, lbl, W * 0.010);
         ctx.fillStyle = '#1a0d02';
         trackFill(ctx, lbl, cx - lw2 / 2, cy2 + ch2 * 0.66, W * 0.010);
-        sheen(ctx, cx2, cy2, cw2, ch2, ch2 / 2, t - 4.05, 1.5, '#ffffff', 0.45);
+        sheen(ctx, cx2, cy2, cw2, ch2, ch2 / 2, t - 4.28, 1.5, '#ffffff', 0.45);
         ctx.restore();
       }
     }
 
     if (flash > 0.01 && snapped) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = hexa('#ffffff', 0.38 * flash * flash);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      streak(ctx, cx, lockY, W * 1.6, '#fff0d0', 0.55 * flash);
+      ctx.fillStyle = hexa('#ffffff', 0.24 * flash * flash);
       ctx.fillRect(0, 0, W, H);
       ctx.restore();
     }
+
     var end = smooth(inv(t, dur - 0.22, dur));
     if (end > 0.001) { ctx.fillStyle = hexa('#000000', end * 0.55); ctx.fillRect(0, 0, W, H); }
     ctx.restore();
@@ -1987,7 +2102,7 @@
     drawFrame: drawFrame,
     u: {
       clamp: clamp, lerp: lerp, inv: inv, smooth: smooth, easeOut: easeOut,
-      easeOut4: easeOut4, easeIn: easeIn, easeBack: easeBack, osc: osc,
+      easeOut4: easeOut4, easeIn: easeIn, easeInOut: easeInOut, easeBack: easeBack, osc: osc,
       hexa: hexa, mix: mix, ramp: ramp, rng: rng, rr: rr, glow: glow, glowE: glowE,
       scrim: scrim, shapeBloom: shapeBloom, strokeBloom: strokeBloom, swell: swell,
       setFont: setFont, trackW: trackW, trackFill: trackFill, fitSize: fitSize,
@@ -1996,7 +2111,8 @@
       aurora: aurora, sheen: sheen, orbit: orbit,
       chip: chip, feed: feed, riseWords: riseWords, headline: headline,
       streak: streak, vignette: vignette, grain: grain, columns: columns,
-      pathCheck: pathCheck, checkSym: checkSym,
+      pathCheck: pathCheck, checkSym: checkSym, checkStroke: checkStroke,
+      swooshTarget: swooshTarget,
       tldSym: tldSym, sparkSym: sparkSym
     }
   };
