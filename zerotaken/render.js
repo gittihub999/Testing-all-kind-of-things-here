@@ -17,7 +17,7 @@
 const { createCanvas } = require('@napi-rs/canvas');
 const fs = require('fs');
 const path = require('path');
-const ENGINE = require('./engine.js');
+const ENGINE = require(process.env.ENGINE || './engine.day1.js');   // ENGINE=./engine.day2.js for another film
 
 const outDir = process.argv[2] || './frames';
 const mode = process.argv[3] || 'all';

@@ -1,15 +1,89 @@
-# ZeroTaken — motion promo (9:16, with sound)
+# ZeroTaken — daily promo series
+
+One film per day, each with its own script, look, voice and score, so nothing
+gets re-posted. Every film is 9:16, 1080×1920, 30fps, H.264 + AAC, mastered to
+−14 LUFS.
+
+| day | film | look | angle | length |
+|---|---|---|---|---|
+| 1 | `zerotaken-day1-dark.mp4` · `.html` | dark neon, glass and light | problem → premium trap → product | 46.0s |
+| 2 | `zerotaken-day2-light.mp4` · `.html` | bright paper, cards and shadow | "3 checks before you buy" listicle | 36.0s |
+
+SEO packs: `SEO.md` (day 1), `SEO-day2.md` (day 2).
+
+## Building any day
+
+The renderer takes the engine as an environment variable, so each day is one
+engine file plus one audio build:
+
+```bash
+npm i @napi-rs/canvas
+ENGINE=./engine.day2.js SUB=3 node render.js frames-day2 all      # resumable
+ffmpeg -y -framerate 30 -i frames-day2/f_%04d.jpg -c:v libx264 -pix_fmt yuv420p \
+  -crf 17 -preset slow -movflags +faststart day2_video.mp4
+
+pip install kokoro-onnx   # model files in /tmp/kokoro
+cd audio && python3 day2_audio.py && python3 day2_vo.py && python3 day2_mix.py && cd ..
+
+ffmpeg -y -i day2_video.mp4 -i audio/day2_mix.wav \
+  -filter_complex "[1:a]loudnorm=I=-14:TP=-1.2:LRA=11,aresample=48000[a]" \
+  -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart \
+  zerotaken-day2-light.mp4
+```
+
+`render.js` renders every frame as the mean of 3 sub-samples across 62% of the
+frame interval for motion blur, clamped inside the scene so a shutter never
+straddles a cut.
+
+---
+
+## Day 2 — "3 checks before you buy" (bright)
+
+A deliberately light film rather than a recolour of the dark one. The dark
+house style makes light the subject; here the subject is paper and shadow.
+Depth comes from elevation, colour from soft washes and flat brand tints, and
+the motion is springy the way light product UI is.
+
+```
+ 0– 4  HOOK      the three checks stack up          "3 checks before you buy"
+ 4–10  CHECK 1   registrar price vs aftermarket     "Really available?"
+10–16  CHECK 2   brandability dial to 92            "Worth remembering?"
+16–22  CHECK 3   five platform handles tick green   "Handle free?"
+22–30  SHORTCUT  the checks dock, results land      "ZeroTaken does all three"
+30–36  CLOSE     results collapse into the logo     "zerotaken.com"
+```
+
+Palette: warm paper `#F5F3EF`, white cards, ink `#191512`, ZeroTaken orange
+`#EF7908`, green `#2E9E33`, red `#E0364F`, and peach / mint / lavender / sky
+tints. Cuts on the 120 BPM bar grid, so the score locks to the edit.
+
+**Voice:** Kokoro-82M `af_bella`, speed 0.74 — 114 wpm, dry. All three question
+lines are checked for terminal pitch rise at build time:
+
+```
+Found a domain you like?                +2.9 st   rises
+Two. Memorable, right?                  +2.0 st   rises
+Three. Is the handle free everywhere?   +3.9 st   rises
+```
+
+**Score:** C major (C–G–Am–F), marimba plucks, bells, shakers and claps —
+brighter than day 1's A-minor synthwave. One continuous piece; transitions
+live in the SFX layer.
+
+---
+
+## Day 1 — the dark film
 
 Vertical motion-graphics promo for [ZeroTaken](https://zerotaken.com), the AI
 domain name generator that only surfaces domains you can actually register.
 
 | file | what it is |
 |---|---|
-| `zerotaken-promo.mp4` | the finished film — 46.0s, 1080×1920, 30fps, H.264 CRF 17 + AAC |
-| `zerotaken-promo.html` | the same film as a self-contained player with the audio embedded |
+| `zerotaken-day1-dark.mp4` | the finished film — 46.0s |
+| `zerotaken-day1-dark.html` | the same film as a self-contained player |
 | `SEO.md` | titles, description, tags, transcript and claim sourcing |
 | `voice-auditions.m4a` | five voices reading the same line, if you want a different one |
-| `engine.js` | the animation — one pure `drawFrame(ctx, t)`; `BRAND` and `TIMELINE` at the top |
+| `engine.day1.js` | the animation — one pure `drawFrame(ctx, t)`; `BRAND` and `TIMELINE` at the top |
 | `render.js` | frame renderer: resumable, 3× temporal motion blur, JPEG intermediates |
 | `shell.html` | player template; `/*__ENGINE__*/` and `__AUDIO__` are substituted at build time |
 | `engine.16x9.js` | the original landscape cut, kept for reference |
