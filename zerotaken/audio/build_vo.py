@@ -1,7 +1,13 @@
 """Voiceover.
 
 Kokoro-82M (Apache-2.0) rather than Piper: markedly more natural, and
-`am_michael` reads at ~115 wpm unstretched so the pace comes from the voice.
+`af_heart` is Kokoro's highest-graded voice.
+
+The opening questions are phrased so the model actually raises its pitch on
+them. Most phrasings make it FALL — measured, "Naming your startup?" ends
+10 semitones DOWN on this voice, which is why it read as a statement. The
+build below measures the terminal pitch rise of every question line and
+fails loudly if one of them drops.
 
 Deliberately DRY — no reverb. A room on a promo read is what makes it sound
 processed and artificial; the music carries the space instead. Processing is
@@ -13,16 +19,16 @@ from kokoro_onnx import Kokoro
 
 SR = 48000
 DUR = 46.0
-VOICE = os.environ.get('VO_VOICE', 'am_michael')
-SPEED = float(os.environ.get('VO_SPEED', '1.0'))
+VOICE = os.environ.get('VO_VOICE', 'af_heart')
+SPEED = float(os.environ.get('VO_SPEED', '0.80'))
 OUT = os.path.dirname(os.path.abspath(__file__))
 kok = Kokoro('/tmp/kokoro/kokoro-v1.0.onnx', '/tmp/kokoro/voices-v1.0.bin')
 
 # (start, [phrase | pause_in_seconds, ...])  — one entry per beat
 LINES = [
-    (0.70,  ["Naming your startup?"]),
-    (4.55,  ["Every good dot com is gone."]),
-    (8.40,  ["The free ones?", 0.34, "Premium priced."]),
+    (0.70,  ["Looking for a name?"]),
+    (4.55,  ["Every good dot com is taken, right?"]),
+    (8.40,  ["And the free ones?", 0.34, "Premium priced."]),
     (12.65, ["ZeroTaken.", 0.40, "Only names you can actually register."]),
     (18.60, ["Describe your idea.", 0.32, "The A.I. writes the names."]),
     (24.50, ["Two hundred forty extensions."]),
@@ -38,6 +44,37 @@ def synth(text):
                        lang='en-gb' if VOICE[0] == 'b' else 'en-us')
     return np.asarray(a, dtype=np.float64), sr
 
+def f0_track(x, sr, fmin=70, fmax=420, hop=0.010, win=0.045):
+    n = int(win * sr); h = int(hop * sr)
+    lo, hi = int(sr / fmax), int(sr / fmin)
+    out = []
+    for i in range(0, max(0, len(x) - n), h):
+        seg = x[i:i + n] - x[i:i + n].mean()
+        if np.sqrt((seg ** 2).mean()) < 0.012:
+            out.append(0.0); continue
+        seg = seg * np.hanning(n)
+        c = np.correlate(seg, seg, 'full')[n - 1:]
+        c[:lo] = 0
+        hi2 = min(hi, len(c) - 2)
+        k = int(np.argmax(c[:hi2]))
+        if k <= lo or c[k] <= 0:
+            out.append(0.0); continue
+        a_, b_, c_ = c[k - 1], c[k], c[k + 1]
+        d = (a_ - c_) / (2 * (a_ - 2 * b_ + c_) + 1e-12)
+        out.append(sr / (k + d))
+    return np.array(out)
+
+def terminal_rise(x, sr, tail=0.42, hop=0.010):
+    """Semitones of pitch change across the end of a phrase. A question that
+    does not end higher than it started will read as a statement."""
+    f = f0_track(x, sr, hop=hop)
+    v = np.where(f > 0)[0]
+    if len(v) < 8: return None
+    tail_n = max(5, int(tail / hop))
+    fv = np.clip(f[v][-tail_n:], 60, 450)
+    k = max(2, len(fv) // 3)
+    return 12 * np.log2(np.median(fv[-k:]) / np.median(fv[:k]))
+
 def resample(a, src, dst):
     if src == dst: return a
     n = int(round(len(a) * dst / src))
@@ -50,6 +87,7 @@ def trim(a, sr, thr=0.010):
 
 bed = np.zeros(int(SR * DUR))
 report = []
+questions = []
 for bi, (t0, parts) in enumerate(LINES):
     pieces = []
     for part in parts:
@@ -57,7 +95,11 @@ for bi, (t0, parts) in enumerate(LINES):
             pieces.append(np.zeros(int(part * SR)))
             continue
         a, sr = synth(part)
-        a = resample(trim(a, sr), sr, SR)
+        a = trim(a, sr)
+        if part.rstrip().endswith('?'):
+            rise = terminal_rise(a, sr)
+            questions.append((part, rise))
+        a = resample(a, sr, SR)
         f = int(0.010 * SR)
         a[:f] *= np.linspace(0, 1, f); a[-f:] *= np.linspace(1, 0, f)
         pieces.append(a)
@@ -123,3 +165,7 @@ print('voice=%s speed=%.2f  ·  %d words · %.1fs of speech in %.0fs · %.0f wpm
       % (VOICE, SPEED, wc, spoken, DUR, wc/spoken*60))
 for (s, e, slack, txt) in report:
     print('%6.2f -> %6.2f  slack %5.2fs   %s%s' % (s, e, slack, txt, '  <-- TIGHT' if slack < 0.3 else ''))
+print('question intonation (terminal pitch change, semitones):')
+for (q, r) in questions:
+    ok = 'rises' if (r or -9) > 0.5 else 'FLAT/FALLS — rephrase it'
+    print('   %-40s %+5.1f st   %s' % (q, r if r is not None else -99, ok))

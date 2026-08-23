@@ -13,6 +13,7 @@ site already ranks for rather than inventing new terms.
 | domain availability checker | "Checked live" + "REGISTRY DIRECT" at 26s |
 | brandable domain names | "scored for brandability" at 28.6s |
 | business name generator | "Naming your startup?" opening |
+| looking for a domain name | the opening question, matching their FAQ wording |
 | check domain availability | beat 6 |
 | .com .io .ai domains | TLD ring, 24–28s |
 | 240+ domain extensions | on screen at 26s, spoken at 24.5s |
@@ -59,12 +60,12 @@ search`, `.com availability`, `premium domain`, `domain front running`,
 
 ## Transcript (for captions / description timestamps)
 
-Read by Kokoro-82M `am_michael` at 124 wpm.
+Read by Kokoro-82M `af_heart` at 124 wpm.
 
 ```
-0:00  Naming your startup?
-0:04  Every good dot com is gone.
-0:08  The free ones? Premium priced.
+0:00  Looking for a name?
+0:04  Every good dot com is taken, right?
+0:08  And the free ones? Premium priced.
 0:12  ZeroTaken. Only names you can actually register.
 0:18  Describe your idea. The A.I. writes the names.
 0:24  Two hundred forty extensions.
@@ -78,7 +79,7 @@ Read by Kokoro-82M `am_michael` at 124 wpm.
 
 ```
 Naming your startup?  ·  IDEA · NAME · DOMAIN
-Every good .com is gone  ·  TAKEN · TAKEN · TAKEN
+Every good .com taken?  ·  TAKEN · TAKEN · TAKEN
 Available.  →  For $2,450.  ·  PREMIUM · AFTERMARKET · BROKER MARKUP
 ZEROtaken  ·  AI DOMAIN NAME GENERATOR  →  ONLY NAMES YOU CAN ACTUALLY REGISTER
 DESCRIBE YOUR IDEA  ·  AI DOMAIN NAME GENERATOR

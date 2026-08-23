@@ -901,7 +901,7 @@
       hue: C.violet, hue2: C.indigo, taken: true
     });
 
-    headline(ctx, t, 'Every good .com is gone', H * 0.225, inv(t, 0.12, 1.25),
+    headline(ctx, t, 'Every good .com taken?', H * 0.225, inv(t, 0.12, 1.25),
       { hot: C.pink, hotWords: [2], sweepFrom: 1.25 });
 
     var la = smooth(inv(t, 1.90, 2.30));

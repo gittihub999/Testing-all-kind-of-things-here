@@ -14,7 +14,7 @@ domain name generator that only surfaces domains you can actually register.
 | `shell.html` | player template; `/*__ENGINE__*/` and `__AUDIO__` are substituted at build time |
 | `engine.16x9.js` | the original landscape cut, kept for reference |
 | `audio/build_audio.py` | the score and the sound effects, synthesised |
-| `audio/build_vo.py` | the voiceover (Kokoro-82M, `am_michael`) |
+| `audio/build_vo.py` | the voiceover (Kokoro-82M, `af_heart`) — measures question intonation |
 | `audio/mix.py` | stem mix |
 | `audio/stem_*.m4a` | music / SFX / voice stems, if you want to remix |
 
@@ -27,7 +27,7 @@ sourced in `SEO.md`.
 
 ```
  0– 4  ASK        chip feed of candidate names       "Naming your startup?"
- 4– 8  TAKEN      every line struck through, ✕       "Every good .com is gone"
+ 4– 8  TAKEN      every line struck through, ✕       "Every good .com taken?"
  8–12  TRAP       chip flips AVAILABLE → $2,450      "For $2,450."  · the aftermarket trap
 12–18  REVEAL     wordmark snap                      "AI domain name generator" → "only names you can actually register"
 18–24  GENERATE   three prompts typed, results       "Describe your idea"
@@ -46,22 +46,41 @@ answer) → blue/violet through the product beats → mint (privacy) → orange.
 
 ## Voiceover
 
-**Kokoro-82M** (Apache-2.0), voice `am_michael`, speed 0.86 — 53 words, 25.7s of
-speech across 46s, **124 wpm while speaking**, with real silences between
-phrases. Every line has at least 0.84s of slack before its beat ends.
+**Kokoro-82M** (Apache-2.0), voice `af_heart` — Kokoro's highest-graded voice —
+at speed 0.80: 56 words, 27.2s of speech across 46s, **124 wpm while speaking**,
+with real silences between phrases. Every line has at least 1.0s of slack
+before its beat ends.
 
-Deliberately **dry**: no reverb on the voice at all. Processing is one
-high-pass at 80 Hz, a 2 dB presence shelf at 4.5 kHz and gentle levelling —
-no saturation stage. The voice sits **+13.5 dB over the music** during speech.
+Deliberately **dry**: no reverb on the voice at all. One high-pass at 80 Hz, a
+2 dB presence shelf at 4.5 kHz and gentle levelling — no saturation stage. The
+voice sits **+13.6 dB over the music** during speech.
 
-`voice-auditions.m4a` has `am_michael`, `am_onyx`, `bm_george`, `af_heart` and
-`af_bella` reading the same line. To switch:
-`VO_VOICE=bm_george VO_SPEED=0.86 python3 audio/build_vo.py`, then re-mix.
+### Questions that actually sound like questions
+
+Most phrasings make this class of model drop its pitch at the end of a
+question, so it reads as a statement. Measured on `af_heart`, "Naming your
+startup?" ends **10 semitones down**. `build_vo.py` now tracks F0 and reports
+the terminal pitch change of every question line, and the copy was chosen
+against that measurement:
 
 ```
- 0.70  Naming your startup?
- 4.55  Every good dot com is gone.
- 8.40  The free ones? / Premium priced.
+Looking for a name?                   +2.0 st   rises
+Every good dot com is taken, right?   +4.7 st   rises
+And the free ones?                    +6.7 st   rises
+```
+
+A trailing tag (`…, right?`) turned out to be the most reliable trigger, and
+grammatically complete questions beat noun-phrase fragments.
+
+`voice-auditions.m4a` has `af_heart`, `af_bella`, `bf_emma`, `bf_alice` and
+`af_nova` each reading the film's opening three lines, so the question
+intonation is directly comparable. To switch:
+`VO_VOICE=bf_emma python3 audio/build_vo.py`, then re-run `mix.py`.
+
+```
+ 0.70  Looking for a name?
+ 4.55  Every good dot com is taken, right?
+ 8.40  And the free ones? / Premium priced.
 12.65  ZeroTaken. / Only names you can actually register.
 18.60  Describe your idea. / The A.I. writes the names.
 24.50  Two hundred forty extensions.
