@@ -170,26 +170,16 @@ function drawButton(x, y, w, label, active, dis) { THEME.button(ctx, x, y, w, 52
 const BTN = { bomb: { x: 20, y: 886, w: 160 }, speed: { x: 190, y: 886, w: 170 } };
 
 function draw() {
-  THEME.drawBackground(ctx, W, H, t);
-  for (const o of obs) THEME.drawObstacle(ctx, o, t);
-  for (const w of ways) THEME.drawRoad(ctx, w.from, w.to, w.from.owner, t);
-  for (const c of crates) THEME.drawCrate(ctx, c, t);
-  if (drag && drag.moved) THEME.drawRoad(ctx, drag.from, drag.to || { x: drag.x, y: drag.y }, 1, t, true, drag.bad);
-  for (const b of [...B].sort((a, c) => a.y - c.y)) {
-    const sel = drag && (drag.from === b || drag.to === b);
-    if (b.kind === 'fort') THEME.drawFort(ctx, b, t, sel); else THEME.drawHouse(ctx, b, t, sel);
-  }
-  for (const s of soldiers) s.tank ? THEME.drawTank(ctx, s, t) : THEME.drawSoldier(ctx, s, t, speedLeft > 0);
-  for (const s of shots) THEME.drawShot(ctx, s.a, s.b, s.c);
-  for (const f of fx) f.type === 'boom' ? THEME.drawBoom(ctx, f.x, f.y, f.t, f.r, f.c) : THEME.drawCapture(ctx, f.x, f.y, f.t, f.c);
-
+  R3.render({ B, ways, obs, soldiers, fx, shots, crates, drag, t });
+  ctx.clearRect(0, 0, W, H);
+  for (const b of B) { const p = R3.screen(b.x, b.y + 30, 0); THEME.text(ctx, String(Math.max(0, Math.floor(b.troops))), p.x, p.y + 6, 20); }
   THEME.hud(ctx, W, H, 'Səviyyə ' + level + (level % 5 === 0 ? '  ★ BOSS' : ''));
   ctx.textAlign = 'right'; ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#cfe3ff'; ctx.textBaseline = 'middle';
   ctx.fillText('Evdən evə sürüşdür: yol • Toxun: yüksəlt • Yola toxun: kəs', W - 10, 28);
   drawButton(BTN.bomb.x, BTN.bomb.y, BTN.bomb.w, 'Bomba ×' + bombs, bombArmed, bombs <= 0);
   drawButton(BTN.speed.x, BTN.speed.y, BTN.speed.w, speedLeft > 0 ? 'Sürət ' + Math.ceil(speedLeft) + 's' : 'Sürət ×' + speeds, speedLeft > 0, speeds <= 0 && speedLeft <= 0);
-  if (bombArmed) { THEME.text(ctx, 'Bomba atmaq üçün xəritəyə toxun', W / 2, 850, 18); }
-  if (msg) { ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.beginPath(); ctx.roundRect(W / 2 - 130, 80, 260, 36, 18); ctx.fill(); ctx.fillStyle = '#ffd0d0'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(msg.text, W / 2, 99); }
+  if (bombArmed) THEME.text(ctx, 'Bomba atmaq üçün xəritəyə toxun', W / 2, 850, 18);
+  if (msg) { ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.beginPath(); ctx.roundRect(W / 2 - 130, 80, 260, 36, 18); ctx.fill(); ctx.fillStyle = '#ffd0d0'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(msg.text, W / 2, 99); }
   if (state !== 'play') {
     ctx.fillStyle = 'rgba(10,20,35,.7)'; ctx.fillRect(0, 0, W, H);
     THEME.text(ctx, state === 'win' ? 'QƏLƏBƏ!' : 'MƏĞLUBİYYƏT', W / 2, H / 2 - 50, 54);
@@ -198,7 +188,7 @@ function draw() {
 }
 
 function pos(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
-const hit = p => B.find(b => dist({ x: b.x, y: b.y + 2 }, p) < b.r + 12);
+const hit = p => B.find(b => dist({ x: b.x, y: b.y + 8 }, p) < b.r + 14);
 const inBtn = (p, k) => p.x > k.x && p.x < k.x + k.w && p.y > k.y && p.y < k.y + 52;
 
 function bomb(p) {
@@ -209,13 +199,13 @@ function bomb(p) {
 }
 
 cv.addEventListener('pointerdown', e => {
-  const p = pos(e);
+  const q = pos(e), p = R3.ground(q.x, q.y);
   if (state !== 'play') {
-    if (p.x > W / 2 - 120 && p.x < W / 2 + 120 && p.y > H / 2 + 10 && p.y < H / 2 + 74) { if (state === 'win') level++; buildLevel(level); }
+    if (q.x > W / 2 - 120 && q.x < W / 2 + 120 && q.y > H / 2 + 10 && q.y < H / 2 + 74) { if (state === 'win') level++; buildLevel(level); }
     return;
   }
-  if (inBtn(p, BTN.bomb)) { if (bombs > 0) bombArmed = !bombArmed; return; }
-  if (inBtn(p, BTN.speed)) { if (speeds > 0 && speedLeft <= 0) { speeds--; speedLeft = 8; } return; }
+  if (inBtn(q, BTN.bomb)) { if (bombs > 0) bombArmed = !bombArmed; return; }
+  if (inBtn(q, BTN.speed)) { if (speeds > 0 && speedLeft <= 0) { speeds--; speedLeft = 8; } return; }
   if (bombArmed) { bomb(p); return; }
   const b = hit(p);
   if (b && b.owner === 1) { drag = { from: b, x: p.x, y: p.y, moved: false }; cv.setPointerCapture(e.pointerId); return; }
@@ -225,7 +215,7 @@ cv.addEventListener('pointerdown', e => {
 });
 cv.addEventListener('pointermove', e => {
   if (!drag) return;
-  const p = pos(e); drag.x = p.x; drag.y = p.y;
+  const q = pos(e), p = R3.ground(q.x, q.y); drag.x = p.x; drag.y = p.y;
   if (dist(p, drag.from) > 20) drag.moved = true;
   const h = hit(p); drag.to = h && h !== drag.from ? h : null;
   drag.bad = drag.to ? blocked(drag.from, drag.to) : false;
@@ -243,7 +233,8 @@ cv.addEventListener('pointercancel', () => drag = null);
 
 let last = performance.now();
 function loop(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(loop); }
-window.__tw = { get state() { return state; }, B: () => B, ways: () => ways, addWay, build: buildLevel, step: update, soldiers: () => soldiers };
+window.__tw = { setCam: R3.setCam, screen: R3.screen, ground: R3.ground, get state() { return state; }, B: () => B, ways: () => ways, addWay, build: buildLevel, step: update, soldiers: () => soldiers };
+R3.init(document.getElementById('gl'));
 buildLevel(level);
 requestAnimationFrame(loop);
 })();

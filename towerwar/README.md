@@ -1,6 +1,6 @@
 # Qala Savaşı
 
-Sıfırdan yazılmış yol-çəkmə strategiya oyunu (HTML5 Canvas).
+Sıfırdan yazılmış yol-çəkmə strategiya oyunu (3D, Three.js + HTML5 Canvas UI).
 
 - Öz evindən başqa evə sürüşdür: yol çəkilir, əsgərlər axınla yeriyir
 - Evə toxun: yüksəlt (daha çox istehsal və yol limiti)
@@ -12,7 +12,7 @@ Sıfırdan yazılmış yol-çəkmə strategiya oyunu (HTML5 Canvas).
 - Hər 5-ci səviyyə boss səviyyəsidir (3 düşmən)
 
 ## Vizualı dəyişmək
-Fon, ev, qüllə, əsgər, yol və maneələr yalnız `theme.js`-dədir. Mexanika `game.js`-dədir.
+Rəng cədvəli `theme.js`-də, 3D modellər və kamera `r3.js`-də, mexanika `game.js`-dədir.
 
 ## APK
 ```

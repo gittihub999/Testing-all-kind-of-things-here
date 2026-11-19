@@ -2,6 +2,6 @@
   "name": "qala-savasi",
   "version": "0.1.0",
   "private": true,
-  "scripts": { "build": "mkdir -p www && cp index.html theme.js game.js www/" },
+  "scripts": { "build": "mkdir -p www && cp index.html three.min.js theme.js r3.js game.js www/" },
   "dependencies": { "@capacitor/android": "^6.0.0", "@capacitor/cli": "^6.0.0", "@capacitor/core": "^6.0.0" }
 }
