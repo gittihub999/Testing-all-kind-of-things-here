@@ -166,12 +166,7 @@ function ai() {
   }
 }
 
-function drawButton(x, y, w, label, active, dis) {
-  ctx.fillStyle = dis ? 'rgba(60,60,60,.7)' : active ? '#ffb347' : 'rgba(0,0,0,.6)';
-  ctx.beginPath(); ctx.roundRect(x, y, w, 52, 14); ctx.fill();
-  ctx.fillStyle = dis ? '#888' : active ? '#222' : '#fff'; ctx.font = 'bold 17px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(label, x + w / 2, y + 26);
-}
+function drawButton(x, y, w, label, active, dis) { THEME.button(ctx, x, y, w, 52, label, active, dis); }
 const BTN = { bomb: { x: 20, y: 886, w: 160 }, speed: { x: 190, y: 886, w: 170 } };
 
 function draw() {
@@ -188,21 +183,17 @@ function draw() {
   for (const s of shots) THEME.drawShot(ctx, s.a, s.b, s.c);
   for (const f of fx) f.type === 'boom' ? THEME.drawBoom(ctx, f.x, f.y, f.t, f.r, f.c) : THEME.drawCapture(ctx, f.x, f.y, f.t, f.c);
 
-  ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, W, 60);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText('Səviyyə ' + level + (level % 5 === 0 ? '  ★ BOSS' : ''), 16, 30);
-  ctx.textAlign = 'right'; ctx.font = '13px sans-serif'; ctx.fillStyle = '#dfe';
-  ctx.fillText('Evdən evə sürüşdür: yol çək • Toxun: yüksəlt • Yola toxun: kəs', W - 12, 30);
+  THEME.hud(ctx, W, H, 'Səviyyə ' + level + (level % 5 === 0 ? '  ★ BOSS' : ''));
+  ctx.textAlign = 'right'; ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#cfe3ff'; ctx.textBaseline = 'middle';
+  ctx.fillText('Evdən evə sürüşdür: yol • Toxun: yüksəlt • Yola toxun: kəs', W - 10, 28);
   drawButton(BTN.bomb.x, BTN.bomb.y, BTN.bomb.w, 'Bomba ×' + bombs, bombArmed, bombs <= 0);
   drawButton(BTN.speed.x, BTN.speed.y, BTN.speed.w, speedLeft > 0 ? 'Sürət ' + Math.ceil(speedLeft) + 's' : 'Sürət ×' + speeds, speedLeft > 0, speeds <= 0 && speedLeft <= 0);
-  if (bombArmed) { ctx.fillStyle = '#fff'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Bomba atmaq üçün xəritəyə toxun', W / 2, 850); }
+  if (bombArmed) { THEME.text(ctx, 'Bomba atmaq üçün xəritəyə toxun', W / 2, 850, 18); }
   if (msg) { ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.beginPath(); ctx.roundRect(W / 2 - 130, 80, 260, 36, 18); ctx.fill(); ctx.fillStyle = '#ffd0d0'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(msg.text, W / 2, 99); }
   if (state !== 'play') {
-    ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = state === 'win' ? '#7dffa0' : '#ff7d7d'; ctx.font = 'bold 52px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(state === 'win' ? 'Qələbə!' : 'Məğlubiyyət', W / 2, H / 2 - 40);
-    ctx.fillStyle = '#3aa0ff'; ctx.beginPath(); ctx.roundRect(W / 2 - 120, H / 2 + 10, 240, 64, 16); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 26px sans-serif'; ctx.fillText(state === 'win' ? 'Növbəti' : 'Yenidən', W / 2, H / 2 + 43);
+    ctx.fillStyle = 'rgba(10,20,35,.7)'; ctx.fillRect(0, 0, W, H);
+    THEME.text(ctx, state === 'win' ? 'QƏLƏBƏ!' : 'MƏĞLUBİYYƏT', W / 2, H / 2 - 50, 54);
+    THEME.button(ctx, W / 2 - 120, H / 2 + 10, 240, 64, state === 'win' ? 'Növbəti' : 'Yenidən', true, false);
   }
 }
 
