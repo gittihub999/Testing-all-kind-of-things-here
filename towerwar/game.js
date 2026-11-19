@@ -1,10 +1,10 @@
 (() => {
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const W = 540, H = 960;
-const CAP = [30, 50, 80], RATE = [0.9, 1.5, 2.2], UP_COST = [15, 30], MAXWAYS = [2, 3, 4];
+const CAP = [64, 80, 99], RATE = [0.9, 1.5, 2.2], UP_COST = [15, 30], MAXWAYS = [2, 3, 4];
 const SPEED = 90, SPAWN_EVERY = 0.5;
 
-let level = 1, B = [], ways = [], obs = [], soldiers = [], fx = [], shots = [];
+let level = 1, B = [], ways = [], obs = [], soldiers = [], fx = [], shots = [], crates = [], aiDelay = 0;
 let state = 'play', drag = null, aiTimer = 0, sid = 0, t = 0, msg = null;
 let bombs = 3, speeds = 2, speedLeft = 0, bombArmed = false, best = 1;
 try { best = parseInt(localStorage.getItem('tw_level') || '1', 10) || 1; level = best; } catch (e) {}
@@ -20,31 +20,39 @@ const blocked = (a, b) => obs.some(o => segDist(o, a, b) < o.r * 0.85 + 6);
 
 function buildLevel(n) {
   const r = rng(n * 7919 + 13);
-  B = []; ways = []; obs = []; soldiers = []; fx = []; shots = [];
-  state = 'play'; drag = null; aiTimer = 1.5; bombs = 3; speeds = 2; speedLeft = 0; bombArmed = false;
-  const houses = Math.min(5 + Math.floor(n * 0.7), 10), forts = Math.min(Math.floor(n / 2), 4);
-  const enemies = Math.min(1 + Math.floor((n - 1) / 3), 3);
-  let guard = 0;
-  while (B.length < houses + forts && guard++ < 3000) {
-    const x = 70 + r() * (W - 140), y = 140 + r() * (H - 300);
-    if (B.every(o => dist(o, { x, y }) > 150)) {
-      const fort = B.length >= houses;
-      B.push({ x, y, r: 34, owner: 0, kind: fort ? 'fort' : 'house', troops: 6 + Math.floor(r() * 18), level: 0, cd: 0, range: 135, aim: 0, id: B.length });
-    }
+  B = []; ways = []; obs = []; soldiers = []; fx = []; shots = []; crates = [];
+  state = 'play'; drag = null; bombs = 3; speeds = 2; speedLeft = 0; bombArmed = false;
+  // Orijinal quruluşdan öyrənilən: oyunçunun bir neçə KİÇİK evi, hər düşmənin bir BÖYÜK evi var
+  const myHouses = n === 1 ? 2 : 4, ais = Math.min(2 + Math.floor(n / 10), 4);
+  const forts = n >= 2 && r() < 0.5 ? 1 : 0;
+  const total = myHouses + ais + forts;
+  let minD = 150, guard = 0;
+  const pts = [];
+  while (pts.length < total) {
+    const p = { x: 70 + r() * (W - 140), y: 140 + r() * (H - 330) };
+    if (pts.every(o => dist(o, p) > minD)) pts.push(p);
+    if (++guard % 1500 === 0) minD -= 10;
   }
-  const homes = B.filter(b => b.kind === 'house').sort((a, b) => b.y - a.y);
-  homes[0].owner = 1; homes[0].troops = 24;
-  const foes = n % 5 === 0 ? 3 : enemies; // hər 5-ci səviyyə boss: 3 düşmən
-  for (let i = 0; i < foes && i < homes.length - 1; i++) {
-    const h = homes[homes.length - 1 - i];
-    h.owner = i % 2 ? 3 : 2; h.troops = 16 + n * 2;
+  pts.sort((a, b) => b.y - a.y);                       // oyunçu aşağıda, düşmənlər yuxarıda
+  const mine = pts.slice(0, myHouses), foes = pts.slice(myHouses, myHouses + ais), fp = pts.slice(myHouses + ais);
+  const tankChance = n >= 10 ? 0.2 : 0;
+  const mk = (p, owner, troops, kind) => B.push({ x: p.x, y: p.y, r: 34, owner, kind: kind || 'house', troops, level: 0, cd: 0, range: 135, aim: 0, id: B.length, wt: r() < tankChance ? 2 : 1 });
+  mine.forEach((p, i) => mk(p, 1, n === 1 ? (i ? 10 : 24) : 5));
+  foes.forEach((p, i) => mk(p, 2 + (i % 4), Math.min(64, 30 + n * 2)));
+  fp.forEach(p => mk(p, 0, 12 + Math.floor(r() * 10), 'fort'));
+  let g2 = 0;
+  const count = n < 100 ? 2 + Math.floor(r() * 3) : 3 + Math.floor(r() * 3);
+  while (obs.length < count && g2++ < 600) {
+    const o = { x: 70 + r() * (W - 140), y: 150 + r() * (H - 340), r: 26 + r() * 20, kind: r() < 0.5 ? 'lake' : 'rock' };
+    if (B.every(b => dist(b, o) > o.r + 70) && obs.every(q => dist(q, o) > q.r + o.r + 20)) obs.push(o);
   }
-  const count = Math.min(1 + Math.floor(n / 2), 5);
-  guard = 0;
-  while (obs.length < count && guard++ < 500) {
-    const o = { x: 70 + r() * (W - 140), y: 150 + r() * (H - 320), r: 28 + r() * 22, kind: r() < 0.5 ? 'lake' : 'rock' };
-    if (B.every(b => dist(b, o) > o.r + 70)) obs.push(o);
+  // 4 yük qutusu (orijinaldakı Cargo): yığılsa mənsub olduğu evə əsgər verir
+  g2 = 0;
+  while (crates.length < 4 && g2++ < 600) {
+    const c = { x: 60 + r() * (W - 120), y: 150 + r() * (H - 340) };
+    if (B.every(b => dist(b, c) > 80) && obs.every(o => dist(o, c) > o.r + 20)) crates.push(c);
   }
+  aiDelay = Math.max(4, 25 - n * 2); aiTimer = aiDelay;  // orijinaldakı AD: AI əvvəlcə gözləyir
 }
 
 const waysFrom = b => ways.filter(w => w.from === b);
@@ -66,8 +74,8 @@ function flash(text) { msg = { text, t: 1.4 }; }
 
 function arrive(s) {
   const b = s.to;
-  if (b.owner === s.owner) { b.troops += 1; return; }
-  b.troops -= 1;
+  if (b.owner === s.owner) { b.troops += s.p; return; }
+  b.troops -= s.p;
   if (b.troops < 0) {
     b.owner = s.owner; b.troops = 1; b.level = Math.max(0, b.level - 1);
     ways = ways.filter(w => w.from !== b);
@@ -94,7 +102,7 @@ function update(dt) {
       for (const s of soldiers) if (s.owner !== b.owner && !s.dead) { const d = dist(b, s); if (d < bd) { bd = d; tgt = s; } }
       if (tgt) {
         b.aim = Math.atan2(tgt.y - b.y, tgt.x - b.x);
-        if (b.cd <= 0) { b.cd = 0.45; kill(tgt, '#ffd34d'); shots.push({ a: { x: b.x, y: b.y - 40 }, b: tgt, t: 0.1, c: THEME.owners[b.owner].main }); }
+        if (b.cd <= 0) { b.cd = 0.45; tgt.p -= 1; if (tgt.p <= 0) kill(tgt, '#ffd34d'); shots.push({ a: { x: b.x, y: b.y - 40 }, b: tgt, t: 0.1, c: THEME.owners[b.owner].main }); }
       }
     }
   }
@@ -104,29 +112,34 @@ function update(dt) {
     w.acc += dt * sp;
     while (w.acc >= SPAWN_EVERY) {
       w.acc -= SPAWN_EVERY;
-      if (w.from.troops >= 2) {
-        w.from.troops -= 1;
+      const cost = w.from.wt === 2 ? 2 : 1;
+      if (w.from.troops >= cost + 1) {
+        w.from.troops -= cost;
         const a = Math.atan2(w.to.y - w.from.y, w.to.x - w.from.x);
-        soldiers.push({ id: sid++, x: w.from.x + Math.cos(a) * 28, y: w.from.y + Math.sin(a) * 28, owner: w.from.owner, to: w.to });
+        soldiers.push({ id: sid++, x: w.from.x + Math.cos(a) * 28, y: w.from.y + Math.sin(a) * 28, owner: w.from.owner, to: w.to, from: w.from, p: cost === 2 ? 3 : 1, tank: cost === 2 });
       }
     }
   }
   for (const s of soldiers) {
     const dx = s.to.x - s.x, dy = s.to.y - s.y, d = Math.hypot(dx, dy);
     if (d < s.to.r - 6) { s.dead = true; arrive(s); continue; }
-    s.x += dx / d * SPEED * sp * dt; s.y += dy / d * SPEED * sp * dt;
+    const v = SPEED * sp * (s.tank ? 0.7 : 1); s.x += dx / d * v * dt; s.y += dy / d * v * dt;
+    for (const c of crates) if (!c.got && dist(c, s) < 16) { c.got = true; if (s.from.owner === s.owner) s.from.troops += 6; fx.push({ type: 'ring', x: c.x, y: c.y, t: 0, c: '#ffe27a' }); }
   }
   for (let i = 0; i < soldiers.length; i++) { // toqquşma
     const a = soldiers[i]; if (a.dead) continue;
     for (let j = i + 1; j < soldiers.length; j++) {
       const c = soldiers[j]; if (c.dead || a.owner === c.owner) continue;
-      if (Math.abs(a.x - c.x) < 8 && Math.abs(a.y - c.y) < 8) { kill(a, '#ffb347'); kill(c, '#ffb347'); break; }
+      if (Math.abs(a.x - c.x) < 8 && Math.abs(a.y - c.y) < 8) {
+        const m = Math.min(a.p, c.p); a.p -= m; c.p -= m;
+        if (a.p <= 0) kill(a, '#ffb347'); if (c.p <= 0) kill(c, '#ffb347'); if (a.dead) break;
+      }
     }
   }
-  soldiers = soldiers.filter(s => !s.dead);
+  soldiers = soldiers.filter(s => !s.dead); crates = crates.filter(c => !c.got);
   ways = ways.filter(w => w.from.owner !== 0);
 
-  aiTimer -= dt; if (aiTimer <= 0) { aiTimer = Math.max(0.6, 1.6 - level * 0.05); ai(); }
+  aiTimer -= dt; if (aiTimer <= 0) { aiTimer = 1 + Math.random() * Math.max(0.5, 2 - level * 0.03); ai(); }
 
   const pl = B.some(x => x.owner === 1) || soldiers.some(s => s.owner === 1);
   const en = B.some(x => x.owner > 1) || soldiers.some(s => s.owner > 1);
@@ -165,12 +178,13 @@ function draw() {
   THEME.drawBackground(ctx, W, H, t);
   for (const o of obs) THEME.drawObstacle(ctx, o, t);
   for (const w of ways) THEME.drawRoad(ctx, w.from, w.to, w.from.owner, t);
+  for (const c of crates) THEME.drawCrate(ctx, c, t);
   if (drag && drag.moved) THEME.drawRoad(ctx, drag.from, drag.to || { x: drag.x, y: drag.y }, 1, t, true, drag.bad);
   for (const b of [...B].sort((a, c) => a.y - c.y)) {
     const sel = drag && (drag.from === b || drag.to === b);
     if (b.kind === 'fort') THEME.drawFort(ctx, b, t, sel); else THEME.drawHouse(ctx, b, t, sel);
   }
-  for (const s of soldiers) THEME.drawSoldier(ctx, s, t, speedLeft > 0);
+  for (const s of soldiers) s.tank ? THEME.drawTank(ctx, s, t) : THEME.drawSoldier(ctx, s, t, speedLeft > 0);
   for (const s of shots) THEME.drawShot(ctx, s.a, s.b, s.c);
   for (const f of fx) f.type === 'boom' ? THEME.drawBoom(ctx, f.x, f.y, f.t, f.r, f.c) : THEME.drawCapture(ctx, f.x, f.y, f.t, f.c);
 

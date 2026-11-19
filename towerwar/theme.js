@@ -5,7 +5,9 @@ const THEME = {
     0: { name: 'Neytral', main: '#a8a08c', dark: '#6b6454', flag: '#d8d2c0' },
     1: { name: 'Sən',     main: '#3aa0ff', dark: '#1f5fa8', flag: '#a6d6ff' },
     2: { name: 'Qırmızı', main: '#ff5a4d', dark: '#a8281f', flag: '#ffb6ae' },
-    3: { name: 'Sarı',    main: '#ffc83a', dark: '#a8780f', flag: '#ffe9a6' }
+    3: { name: 'Sarı',    main: '#ffc83a', dark: '#a8780f', flag: '#ffe9a6' },
+    4: { name: 'Yaşıl',   main: '#4cd964', dark: '#1f8a34', flag: '#b6f5c2' },
+    5: { name: 'Bənövşəyi', main: '#b86cff', dark: '#6a2fa8', flag: '#dcb4ff' }
   },
 
   drawBackground(ctx, W, H, t) {
@@ -124,6 +126,23 @@ const THEME = {
     if (boosted) { ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.moveTo(s.x - 6, s.y); ctx.lineTo(s.x - 14, s.y); ctx.stroke(); }
   },
 
+  drawCrate(ctx, c, t) {
+    const y = c.y + Math.sin(t * 3 + c.x) * 2;
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 10, 11, 4, 0, 0, 6.3); ctx.fill();
+    ctx.fillStyle = '#b57a3a'; ctx.fillRect(c.x - 9, y - 9, 18, 18);
+    ctx.strokeStyle = '#6b4519'; ctx.lineWidth = 2; ctx.strokeRect(c.x - 9, y - 9, 18, 18);
+    ctx.beginPath(); ctx.moveTo(c.x - 9, y - 9); ctx.lineTo(c.x + 9, y + 9); ctx.moveTo(c.x + 9, y - 9); ctx.lineTo(c.x - 9, y + 9); ctx.stroke();
+  },
+  drawTank(ctx, s, t) {
+    const o = THEME.owners[s.owner], a = Math.atan2(s.to.y - s.y, s.to.x - s.x);
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(s.x, s.y + 6, 10, 4, 0, 0, 6.3); ctx.fill();
+    ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(a);
+    ctx.fillStyle = o.dark; ctx.fillRect(-9, -6, 18, 12);
+    ctx.fillStyle = o.main; ctx.fillRect(-7, -4, 14, 8);
+    ctx.fillStyle = '#333'; ctx.fillRect(0, -1.5, 13, 3);
+    ctx.beginPath(); ctx.arc(0, 0, 4, 0, 6.3); ctx.fillStyle = o.flag; ctx.fill();
+    ctx.restore();
+  },
   drawShot(ctx, a, b, c) {
     ctx.strokeStyle = c; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
   },
